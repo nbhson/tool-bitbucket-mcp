@@ -270,6 +270,83 @@ const GET_PULL_REQUEST_COMMENTS_TOOL: Tool = {
   },
 };
 
+// ==========================================
+// Repository Operations
+// ==========================================
+
+const GET_REPO_BRANCHES_TOOL: Tool = {
+  name: "get_repo_branches",
+  description: "List branches in a Bitbucket Server repository",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      filterText: {
+        type: "string",
+        description: "Optional filter to search branch names",
+      },
+    },
+    required: ["projectKey", "repoSlug"],
+  },
+};
+
+const GET_REPO_COMMITS_TOOL: Tool = {
+  name: "get_repo_commits",
+  description: "List recent commits in a Bitbucket Server repository",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      until: {
+        type: "string",
+        description: "Commit SHA, branch, or tag to list commits until",
+      },
+      since: {
+        type: "string",
+        description: "Commit SHA to list commits since",
+      },
+    },
+    required: ["projectKey", "repoSlug"],
+  },
+};
+
+const GET_REPO_TAGS_TOOL: Tool = {
+  name: "get_repo_tags",
+  description: "List tags in a Bitbucket Server repository",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      filterText: {
+        type: "string",
+        description: "Optional filter to search tag names",
+      },
+    },
+    required: ["projectKey", "repoSlug"],
+  },
+};
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -282,6 +359,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       MERGE_PULL_REQUEST_TOOL,
       DECLINE_PULL_REQUEST_TOOL,
       GET_PULL_REQUEST_COMMENTS_TOOL,
+      GET_REPO_BRANCHES_TOOL,
+      GET_REPO_COMMITS_TOOL,
+      GET_REPO_TAGS_TOOL,
     ],
   };
 });
@@ -379,6 +459,41 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (request.params.name === "get_pull_request_comments") {
       const { projectKey, repoSlug, pullRequestId } = request.params.arguments as any;
       const response = await apiClient.get(`/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments`);
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data.values, null, 2) }],
+      };
+    }
+
+    // ==========================================
+    // Repository Operations Handlers
+    // ==========================================
+
+    if (request.params.name === "get_repo_branches") {
+      const { projectKey, repoSlug, filterText } = request.params.arguments as any;
+      const response = await apiClient.get(`/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/branches`, {
+        params: filterText ? { filterText } : {},
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data.values, null, 2) }],
+      };
+    }
+
+    if (request.params.name === "get_repo_commits") {
+      const { projectKey, repoSlug, until, since } = request.params.arguments as any;
+      const params: any = {};
+      if (until) params.until = until;
+      if (since) params.since = since;
+      const response = await apiClient.get(`/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/commits`, { params });
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data.values, null, 2) }],
+      };
+    }
+
+    if (request.params.name === "get_repo_tags") {
+      const { projectKey, repoSlug, filterText } = request.params.arguments as any;
+      const response = await apiClient.get(`/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/tags`, {
+        params: filterText ? { filterText } : {},
+      });
       return {
         content: [{ type: "text", text: JSON.stringify(response.data.values, null, 2) }],
       };
