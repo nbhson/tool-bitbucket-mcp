@@ -1,6 +1,6 @@
 {
   "name": "sbitbucket-mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "build/index.js",
   "bin": {
@@ -15,7 +15,10 @@
     "build": "tsc",
     "start": "node build/index.js",
     "dev": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "bitbucket",
@@ -41,6 +44,8 @@
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
-    "typescript": "^6.0.3"
+    "@vitest/coverage-v8": "^4.1.10",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }
