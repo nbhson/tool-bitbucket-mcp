@@ -536,8 +536,126 @@ const SEARCH_CODE_TOOL: Tool = {
   },
 };
 
+const ADD_COMMENT_TOOL: Tool = {
+  name: "add_comment",
+  description: "Add a comment (general, reply, inline, or blocker task) to a pull request in Bitbucket Server",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+      text: {
+        type: "string",
+        description: "The content of the comment",
+      },
+      parentId: {
+        type: "number",
+        description: "Optional ID of a parent comment to reply to (threaded comment)",
+      },
+      severity: {
+        type: "string",
+        enum: ["NORMAL", "BLOCKER"],
+        description: "Optional comment severity. Use 'BLOCKER' to create a task, 'NORMAL' for a standard comment",
+      },
+      anchor: {
+        type: "object",
+        description: "Optional anchoring information for an inline/code comment",
+        properties: {
+          path: {
+            type: "string",
+            description: "The file path in the repository",
+          },
+          line: {
+            type: "number",
+            description: "The line number in the file",
+          },
+          lineType: {
+            type: "string",
+            enum: ["ADDED", "REMOVED", "CONTEXT"],
+            description: "The type of line in the diff (default: ADDED)",
+          },
+          fileType: {
+            type: "string",
+            enum: ["TO", "FROM"],
+            description: "Which side of the diff the comment attaches to (default: TO)",
+          },
+          diffType: {
+            type: "string",
+            enum: ["COMMIT", "EFFECTIVE", "RANGE"],
+            description: "The type of diff (default: EFFECTIVE)",
+          },
+          fromHash: {
+            type: "string",
+            description: "The source commit hash",
+          },
+          toHash: {
+            type: "string",
+            description: "The destination commit hash",
+          },
+          srcPath: {
+            type: "string",
+            description: "The source file path if renamed/moved",
+          },
+        },
+        required: ["path", "line"],
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId", "text"],
+  },
+};
+
+const MANAGE_COMMENT_TOOL: Tool = {
+  name: "manage_comment",
+  description: "Manage a comment or task on a pull request (edit, delete, resolve, reopen, convert to task, convert to comment)",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+      commentId: {
+        type: "number",
+        description: "The comment/task ID",
+      },
+      version: {
+        type: "number",
+        description: "The current version of the comment (required by Bitbucket Server for conflict prevention)",
+      },
+      action: {
+        type: "string",
+        enum: ["edit", "delete", "resolve", "reopen", "to_task", "to_comment"],
+        description: "The action to perform on the comment or task",
+      },
+      text: {
+        type: "string",
+        description: "The updated text of the comment (required for 'edit')",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId", "commentId", "version", "action"],
+  },
+};
+
 // ==========================================
-// Tier 1: Review Status, PR Update, Grep
+// Tier 1: Review Status & PR Update
 // ==========================================
 
 const SET_REVIEW_STATUS_TOOL: Tool = {
@@ -608,6 +726,10 @@ const UPDATE_PULL_REQUEST_TOOL: Tool = {
   },
 };
 
+// ==========================================
+// Tier 1: Grep (Regex Search)
+// ==========================================
+
 const GREP_TOOL: Tool = {
   name: "grep",
   description:
@@ -663,6 +785,88 @@ const GREP_TOOL: Tool = {
   },
 };
 
+// ==========================================
+// Tier 2: Repositories Search & Commit Details
+// ==========================================
+
+const SEARCH_REPOSITORIES_TOOL: Tool = {
+  name: "search_repositories",
+  description: "Find repositories by name or description across all accessible projects",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Search query for repository name or description",
+      },
+      projectKey: {
+        type: "string",
+        description: "Optional project key to limit search scope",
+      },
+      max_results: {
+        type: "number",
+        description: "Maximum number of results (default: 25)",
+      },
+    },
+    required: ["query"],
+  },
+};
+
+const GET_COMMIT_DETAIL_TOOL: Tool = {
+  name: "get_commit_detail",
+  description: "Get details of a specific commit: commit metadata, changed file list, or full unified diff. Use detail level to control output size.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      commitId: {
+        type: "string",
+        description: "The commit SHA",
+      },
+      detail: {
+        type: "string",
+        enum: ["metadata", "files", "full"],
+        description: "Level of detail: 'metadata' (just commit info), 'files' (changed file list without diffs), 'full' (unified diff for each file)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "commitId"],
+  },
+};
+
+const LIST_PR_COMMITS_TOOL: Tool = {
+  name: "list_pr_commits",
+  description: "List commits on a specific pull request with pagination",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+      max_results: {
+        type: "number",
+        description: "Maximum number of commits to return (default: 100)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId"],
+  },
+};
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -685,9 +889,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       DELETE_BRANCH_TOOL,
       GET_PULL_REQUEST_DIFF_TOOL,
       SEARCH_CODE_TOOL,
+      ADD_COMMENT_TOOL,
+      MANAGE_COMMENT_TOOL,
+      // Tier 1
       SET_REVIEW_STATUS_TOOL,
       UPDATE_PULL_REQUEST_TOOL,
       GREP_TOOL,
+      // Tier 2
+      SEARCH_REPOSITORIES_TOOL,
+      GET_COMMIT_DETAIL_TOOL,
+      LIST_PR_COMMITS_TOOL,
     ],
   };
 });
@@ -787,6 +998,75 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const response = await apiClient.get(`/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments`);
       return {
         content: [{ type: "text", text: JSON.stringify(response.data.values, null, 2) }],
+      };
+    }
+
+    if (request.params.name === "add_comment") {
+      const { projectKey, repoSlug, pullRequestId, text, parentId, severity, anchor } = request.params.arguments as any;
+      const payload: any = {
+        text,
+      };
+      if (parentId) {
+        payload.parent = { id: parentId };
+      }
+      if (severity) {
+        payload.severity = severity;
+      }
+      if (anchor) {
+        payload.anchor = {
+          path: anchor.path,
+          line: anchor.line,
+          lineType: anchor.lineType || "ADDED",
+          fileType: anchor.fileType || "TO",
+          diffType: anchor.diffType || "EFFECTIVE",
+        };
+        if (anchor.fromHash) payload.anchor.fromHash = anchor.fromHash;
+        if (anchor.toHash) payload.anchor.toHash = anchor.toHash;
+        if (anchor.srcPath) payload.anchor.srcPath = anchor.srcPath;
+      }
+      const response = await apiClient.post(
+        `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments`,
+        payload
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
+      };
+    }
+
+    if (request.params.name === "manage_comment") {
+      const { projectKey, repoSlug, pullRequestId, commentId, version, action, text } = request.params.arguments as any;
+      const baseUrl = `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments/${commentId}`;
+      
+      if (action === "delete") {
+        await apiClient.delete(baseUrl, {
+          params: { version }
+        });
+        return {
+          content: [{ type: "text", text: `Comment/Task ${commentId} has been successfully deleted.` }],
+        };
+      }
+      
+      const payload: any = { version };
+      if (action === "edit") {
+        if (!text) {
+          throw new Error("Parameter 'text' is required when action is 'edit'");
+        }
+        payload.text = text;
+      } else if (action === "resolve") {
+        payload.state = "RESOLVED";
+      } else if (action === "reopen") {
+        payload.state = "OPEN";
+      } else if (action === "to_task") {
+        payload.severity = "BLOCKER";
+      } else if (action === "to_comment") {
+        payload.severity = "NORMAL";
+      } else {
+        throw new Error(`Invalid action: ${action}`);
+      }
+
+      const response = await apiClient.put(baseUrl, payload);
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
       };
     }
 
@@ -1034,11 +1314,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     if (request.params.name === "grep") {
       const { projectKey, repoSlug, query, ref, mode = "content", glob, path: searchPath, context_lines = 0, case_insensitive = false, max_results = 200 } = request.params.arguments as any;
 
+      // Bitbucket Server has a built-in search API — use it to get file contents
+      // Then apply regex locally. For large repos, we limit scope.
       const at = ref || "refs/heads/master";
 
+      // Step 1: If glob or path provided, narrow down the file list via browse API
       let filePaths: string[] = [];
 
       if (glob || searchPath) {
+        // Use the search API to find matching files
+        const globPattern = glob || "**/*";
+        const searchQuery = searchPath ? `${searchPath} ${globPattern}` : globPattern;
         const searchResponse = await apiClient.get(
           `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/search`,
           { params: { q: "", type: "file", context: searchPath || "", limit: 500 } }
@@ -1048,12 +1334,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           .filter((p: string) => p);
       }
 
+      // Step 2: Build the regex
       const flags = case_insensitive ? "gi" : "g";
       const regex = new RegExp(query, flags);
 
       const results: any[] = [];
       let totalMatches = 0;
 
+      // Helper: convert glob to simple regex
       const globToRegex = (g: string): RegExp => {
         const escaped = g
           .replace(/[.+^${}()|[\]\\]/g, "\\$&")
@@ -1065,10 +1353,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const globRegex = glob ? globToRegex(glob) : null;
 
+      // Helper: search a single file content
       const searchFileContent = (filePath: string, content: string) => {
         if (max_results > 0 && totalMatches >= max_results) return;
 
+        // Apply glob filter
         if (globRegex && !globRegex.test(filePath)) return;
+
+        // Apply path filter
         if (searchPath && !filePath.startsWith(searchPath)) return;
 
         const lines = content.split("\n");
@@ -1089,6 +1381,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             if (mode === "count") {
               fileMatches.push({ line: i + 1 });
             } else {
+              // content mode with context
               const match: any = { file: filePath, line: i + 1, content: line.trim() };
               if (context_lines > 0) {
                 const start = Math.max(0, i - context_lines);
@@ -1114,6 +1407,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
 
       if (filePaths.length > 0) {
+        // Search specific files
         for (const fp of filePaths) {
           if (max_results > 0 && totalMatches >= max_results) break;
           try {
@@ -1129,12 +1423,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
         }
       } else {
+        // Broad search: use Bitbucket's search API to find files containing the term
         const searchResponse = await apiClient.get(
           `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/search`,
           { params: { q: query, limit: Math.min(max_results, 100) } }
         );
         const searchResults = searchResponse.data.values || [];
 
+        // Group by file and get content for each
         const filesToFetch = new Set<string>();
         for (const result of searchResults) {
           if (max_results > 0 && totalMatches >= max_results) break;
@@ -1160,6 +1456,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           }
         }
 
+        // Also add files found by search that weren't content-matched
         if (mode === "files") {
           for (const result of searchResults) {
             if (totalMatches >= max_results) break;
@@ -1177,6 +1474,148 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       return {
         content: [{ type: "text", text: JSON.stringify({ total: totalMatches, results: results.slice(0, max_results) }, null, 2) }],
+      };
+    }
+
+    // ==========================================
+    // Tier 2: Search Repositories Handler
+    // ==========================================
+
+    if (request.params.name === "search_repositories") {
+      const { query, projectKey, max_results = 25 } = request.params.arguments as any;
+
+      let repos: any[] = [];
+
+      if (projectKey) {
+        // Search within a specific project
+        const response = await apiClient.get(`/rest/api/1.0/projects/${projectKey}/repos`, {
+          params: { limit: max_results },
+        });
+        repos = response.data.values || [];
+        // Filter by query on client side since project-scoped search has limited filtering
+        const lowerQuery = query.toLowerCase();
+        repos = repos.filter((r: any) =>
+          (r.name && r.name.toLowerCase().includes(lowerQuery)) ||
+          (r.slug && r.slug.toLowerCase().includes(lowerQuery)) ||
+          (r.description && r.description.toLowerCase().includes(lowerQuery))
+        );
+      } else {
+        // Cross-project search: list all projects and search repos within each
+        const projectsResponse = await apiClient.get('/rest/api/1.0/projects', {
+          params: { limit: 100 },
+        });
+        const projects = projectsResponse.data.values || [];
+        const lowerQuery = query.toLowerCase();
+
+        for (const project of projects) {
+          if (repos.length >= max_results) break;
+          try {
+            const reposResponse = await apiClient.get(`/rest/api/1.0/projects/${project.key}/repos`, {
+              params: { limit: 100 },
+            });
+            const matched = (reposResponse.data.values || []).filter((r: any) =>
+              (r.name && r.name.toLowerCase().includes(lowerQuery)) ||
+              (r.slug && r.slug.toLowerCase().includes(lowerQuery)) ||
+              (r.description && r.description.toLowerCase().includes(lowerQuery))
+            );
+            repos.push(...matched);
+          } catch {
+            // Skip projects we don't have access to
+          }
+        }
+      }
+
+      const summary = repos.slice(0, max_results).map((r: any) => ({
+        project: r.project?.key,
+        name: r.name,
+        slug: r.slug,
+        description: r.description || "",
+        url: r.links?.clone?.[0]?.href || "",
+      }));
+
+      return {
+        content: [{ type: "text", text: JSON.stringify(summary, null, 2) }],
+      };
+    }
+
+    // ==========================================
+    // Tier 2: Get Commit Detail Handler
+    // ==========================================
+
+    if (request.params.name === "get_commit_detail") {
+      const { projectKey, repoSlug, commitId, detail = "metadata" } = request.params.arguments as any;
+
+      // Always get the base commit info
+      const commitResponse = await apiClient.get(
+        `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/commits/${commitId}`
+      );
+      const commit = commitResponse.data;
+
+      if (detail === "metadata") {
+        return {
+          content: [{ type: "text", text: JSON.stringify(commit, null, 2) }],
+        };
+      }
+
+      if (detail === "files") {
+        // Get the list of changed files using diff endpoint
+        const diffResponse = await apiClient.get(
+          `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/compare/diff`,
+          { params: { from: `${commitId}^`, to: commitId } }
+        );
+        const diffs = diffResponse.data.diffs || [];
+        const files = diffs.map((d: any) => ({
+          path: d.destination?.toString || d.path,
+          status: d.type,
+          linesAdded: d.lineStats?.linesAdded || 0,
+          linesRemoved: d.lineStats?.linesRemoved || 0,
+          oldPath: d.source?.toString || null,
+        }));
+        return {
+          content: [{ type: "text", text: JSON.stringify({ commit: { id: commit.id, message: commit.message, author: commit.author }, files }, null, 2) }],
+        };
+      }
+
+      if (detail === "full") {
+        // Full unified diff for each changed file
+        const diffResponse = await apiClient.get(
+          `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/compare/diff`,
+          { params: { from: `${commitId}^`, to: commitId } }
+        );
+        const diffs = diffResponse.data.diffs || [];
+        const files = diffs.map((d: any) => ({
+          path: d.destination?.toString || d.path,
+          status: d.type,
+          diff: d.hunks || d.content || "",
+          oldPath: d.source?.toString || null,
+        }));
+        return {
+          content: [{ type: "text", text: JSON.stringify({ commit: { id: commit.id, message: commit.message, author: commit.author, date: commit.authorTimestamp }, files }, null, 2) }],
+        };
+      }
+
+      throw new Error(`Invalid detail level: ${detail}. Use 'metadata', 'files', or 'full'.`);
+    }
+
+    // ==========================================
+    // Tier 2: List PR Commits Handler
+    // ==========================================
+
+    if (request.params.name === "list_pr_commits") {
+      const { projectKey, repoSlug, pullRequestId, max_results = 100 } = request.params.arguments as any;
+      const response = await apiClient.get(
+        `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/commits`,
+        { params: { limit: max_results } }
+      );
+      const commits = (response.data.values || response.data || []).map((c: any) => ({
+        id: c.id,
+        displayId: c.displayId,
+        message: c.message,
+        author: c.author,
+        authorTimestamp: c.authorTimestamp,
+      }));
+      return {
+        content: [{ type: "text", text: JSON.stringify(commits, null, 2) }],
       };
     }
 
