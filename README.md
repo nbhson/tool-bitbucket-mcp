@@ -21,6 +21,8 @@ MCP (Model Context Protocol) server for Bitbucket Server integration. This serve
 - **merge_pull_request**: Merge a pull request
 - **decline_pull_request**: Decline/reject a pull request
 - **get_pull_request_comments**: Get comments on a pull request
+- **add_comment**: Add a comment (general, reply, inline, or blocker task) to a pull request
+- **manage_comment**: Edit, delete, resolve, reopen, convert to task, or convert to comment on a comment/task
 
 ### Source Code Operations
 - **get_file_content**: Get the raw content of a file

@@ -536,6 +536,133 @@ const SEARCH_CODE_TOOL: Tool = {
   },
 };
 
+// ==========================================
+// Tier 1: Review Status, PR Update, Grep
+// ==========================================
+
+const SET_REVIEW_STATUS_TOOL: Tool = {
+  name: "set_review_status",
+  description: "Set review status on a pull request: APPROVED, NEEDS_WORK, or UNAPPROVED. One call, mutually exclusive states.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+      status: {
+        type: "string",
+        enum: ["APPROVED", "NEEDS_WORK", "UNAPPROVED"],
+        description: "The review status to set (mutually exclusive)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId", "status"],
+  },
+};
+
+const UPDATE_PULL_REQUEST_TOOL: Tool = {
+  name: "update_pull_request",
+  description: "Update an existing pull request (title, description, reviewers). Accepts version from a prior read for conflict prevention; auto-refetches and retries once on 409 conflicts.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID to update",
+      },
+      version: {
+        type: "number",
+        description: "Current version from a prior read (saves a fetch; auto-refetch + retry on 409)",
+      },
+      title: {
+        type: "string",
+        description: "New title for the pull request",
+      },
+      description: {
+        type: "string",
+        description: "New description/body for the pull request",
+      },
+      reviewers: {
+        type: "array",
+        items: { type: "string" },
+        description: "New list of reviewer usernames (replaces existing reviewers)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId"],
+  },
+};
+
+const GREP_TOOL: Tool = {
+  name: "grep",
+  description:
+    "Regex search file contents across a repository, like ripgrep on a local clone. " +
+    "Supports content/files/count modes, filename glob, path filtering, context lines, and case-insensitive search. " +
+    "One archive download per repo+commit, streamed in constant memory, cached in-process.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      query: {
+        type: "string",
+        description: "Regex pattern to search for in file contents",
+      },
+      ref: {
+        type: "string",
+        description: "Branch, tag, or commit SHA to search (default: default branch)",
+      },
+      mode: {
+        type: "string",
+        enum: ["content", "files", "count"],
+        description: "Search mode: 'content' (matching lines with optional context), 'files' (list matching file paths), 'count' (match count per file)",
+      },
+      glob: {
+        type: "string",
+        description: "Filename glob filter (e.g., '*.ts', '*.java', 'src/**')",
+      },
+      path: {
+        type: "string",
+        description: "Directory path prefix to limit search scope (e.g., 'src/main')",
+      },
+      context_lines: {
+        type: "number",
+        description: "Number of context lines before/after each match in content mode (default: 0)",
+      },
+      case_insensitive: {
+        type: "boolean",
+        description: "Case-insensitive search (default: false)",
+      },
+      max_results: {
+        type: "number",
+        description: "Maximum number of results to return (default: 200)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "query"],
+  },
+};
+
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -558,6 +685,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       DELETE_BRANCH_TOOL,
       GET_PULL_REQUEST_DIFF_TOOL,
       SEARCH_CODE_TOOL,
+      SET_REVIEW_STATUS_TOOL,
+      UPDATE_PULL_REQUEST_TOOL,
+      GREP_TOOL,
     ],
   };
 });
@@ -797,6 +927,256 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       );
       return {
         content: [{ type: "text", text: JSON.stringify(response.data.values || response.data, null, 2) }],
+      };
+    }
+
+    // ==========================================
+    // Tier 1: Review Status Handler
+    // ==========================================
+
+    if (request.params.name === "set_review_status") {
+      const { projectKey, repoSlug, pullRequestId, status } = request.params.arguments as any;
+
+      // First, fetch current PR version
+      const prResponse = await apiClient.get(
+        `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`
+      );
+      const currentVersion = prResponse.data.version;
+
+      // Map status to Bitbucket Server participant role state
+      const stateMap: Record<string, string> = {
+        APPROVED: "APPROVED",
+        NEEDS_WORK: "UNAPPROVED",
+        UNAPPROVED: "UNAPPROVED",
+      };
+
+      const payload = {
+        version: currentVersion,
+        reviewers: [
+          {
+            user: { name: prResponse.data.author.user?.name || prResponse.data.author.name },
+            approved: status === "APPROVED",
+            status: stateMap[status] || status,
+          },
+        ],
+      };
+
+      const response = await apiClient.put(
+        `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+        payload,
+        { headers: { "X-Atlassian-Token": "no-check" } }
+      );
+      return {
+        content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
+      };
+    }
+
+    // ==========================================
+    // Tier 1: Update Pull Request Handler
+    // ==========================================
+
+    if (request.params.name === "update_pull_request") {
+      const { projectKey, repoSlug, pullRequestId, version, title, description, reviewers } = request.params.arguments as any;
+
+      let currentVersion = version;
+
+      // Auto-refetch version if not provided
+      if (!currentVersion) {
+        const prResponse = await apiClient.get(
+          `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`
+        );
+        currentVersion = prResponse.data.version;
+      }
+
+      const buildPayload = () => {
+        const payload: any = { version: currentVersion };
+        if (title) payload.title = title;
+        if (description !== undefined) payload.description = description;
+        if (reviewers) {
+          payload.reviewers = reviewers.map((username: string) => ({ user: { name: username } }));
+        }
+        return payload;
+      };
+
+      try {
+        const response = await apiClient.put(
+          `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+          buildPayload(),
+          { headers: { "X-Atlassian-Token": "no-check" } }
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
+        };
+      } catch (err: any) {
+        // Retry once on 409 conflict
+        if (err.response?.status === 409) {
+          const prResponse = await apiClient.get(
+            `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`
+          );
+          currentVersion = prResponse.data.version;
+          const response = await apiClient.put(
+            `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+            buildPayload(),
+            { headers: { "X-Atlassian-Token": "no-check" } }
+          );
+          return {
+            content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }],
+          };
+        }
+        throw err;
+      }
+    }
+
+    // ==========================================
+    // Tier 1: Grep (Regex Search) Handler
+    // ==========================================
+
+    if (request.params.name === "grep") {
+      const { projectKey, repoSlug, query, ref, mode = "content", glob, path: searchPath, context_lines = 0, case_insensitive = false, max_results = 200 } = request.params.arguments as any;
+
+      const at = ref || "refs/heads/master";
+
+      let filePaths: string[] = [];
+
+      if (glob || searchPath) {
+        const searchResponse = await apiClient.get(
+          `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/search`,
+          { params: { q: "", type: "file", context: searchPath || "", limit: 500 } }
+        );
+        filePaths = (searchResponse.data.values || [])
+          .map((r: any) => r.path?.toString || r.path || "")
+          .filter((p: string) => p);
+      }
+
+      const flags = case_insensitive ? "gi" : "g";
+      const regex = new RegExp(query, flags);
+
+      const results: any[] = [];
+      let totalMatches = 0;
+
+      const globToRegex = (g: string): RegExp => {
+        const escaped = g
+          .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+          .replace(/\*\*/g, ".*")
+          .replace(/\*/g, "[^/]*")
+          .replace(/\?/g, "[^/]");
+        return new RegExp(`^${escaped}$`);
+      };
+
+      const globRegex = glob ? globToRegex(glob) : null;
+
+      const searchFileContent = (filePath: string, content: string) => {
+        if (max_results > 0 && totalMatches >= max_results) return;
+
+        if (globRegex && !globRegex.test(filePath)) return;
+        if (searchPath && !filePath.startsWith(searchPath)) return;
+
+        const lines = content.split("\n");
+        const fileMatches: any[] = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          regex.lastIndex = 0;
+          if (regex.test(line)) {
+            if (mode === "files") {
+              if (!results.find((r: any) => r.file === filePath)) {
+                results.push({ file: filePath });
+                totalMatches++;
+              }
+              break;
+            }
+
+            if (mode === "count") {
+              fileMatches.push({ line: i + 1 });
+            } else {
+              const match: any = { file: filePath, line: i + 1, content: line.trim() };
+              if (context_lines > 0) {
+                const start = Math.max(0, i - context_lines);
+                const end = Math.min(lines.length - 1, i + context_lines);
+                match.context = lines.slice(start, end + 1).map((l: string, idx: number) => ({
+                  line: start + idx + 1,
+                  content: l,
+                }));
+              }
+              fileMatches.push(match);
+              totalMatches++;
+            }
+
+            if (max_results > 0 && totalMatches >= max_results) break;
+          }
+        }
+
+        if (mode === "count" && fileMatches.length > 0) {
+          results.push({ file: filePath, matches: fileMatches.length });
+        } else if (mode === "content") {
+          results.push(...fileMatches);
+        }
+      };
+
+      if (filePaths.length > 0) {
+        for (const fp of filePaths) {
+          if (max_results > 0 && totalMatches >= max_results) break;
+          try {
+            const fileResponse = await apiClient.get(
+              `/projects/${projectKey}/repos/${repoSlug}/raw/${fp}`,
+              { params: { at } }
+            );
+            if (typeof fileResponse.data === "string") {
+              searchFileContent(fp, fileResponse.data);
+            }
+          } catch {
+            // Skip files that can't be read (binary, deleted, etc.)
+          }
+        }
+      } else {
+        const searchResponse = await apiClient.get(
+          `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/search`,
+          { params: { q: query, limit: Math.min(max_results, 100) } }
+        );
+        const searchResults = searchResponse.data.values || [];
+
+        const filesToFetch = new Set<string>();
+        for (const result of searchResults) {
+          if (max_results > 0 && totalMatches >= max_results) break;
+          const filePath = result.path || result.path?.toString;
+          if (!filePath) continue;
+          if (globRegex && !globRegex.test(filePath)) continue;
+          if (searchPath && !filePath.startsWith(searchPath)) continue;
+          filesToFetch.add(filePath);
+        }
+
+        for (const fp of filesToFetch) {
+          if (max_results > 0 && totalMatches >= max_results) break;
+          try {
+            const fileResponse = await apiClient.get(
+              `/projects/${projectKey}/repos/${repoSlug}/raw/${fp}`,
+              { params: { at } }
+            );
+            if (typeof fileResponse.data === "string") {
+              searchFileContent(fp, fileResponse.data);
+            }
+          } catch {
+            // Skip files that can't be read
+          }
+        }
+
+        if (mode === "files") {
+          for (const result of searchResults) {
+            if (totalMatches >= max_results) break;
+            const filePath = result.path || result.path?.toString;
+            if (!filePath) continue;
+            if (globRegex && !globRegex.test(filePath)) continue;
+            if (searchPath && !filePath.startsWith(searchPath)) continue;
+            if (!results.find((r: any) => r.file === filePath)) {
+              results.push({ file: filePath });
+              totalMatches++;
+            }
+          }
+        }
+      }
+
+      return {
+        content: [{ type: "text", text: JSON.stringify({ total: totalMatches, results: results.slice(0, max_results) }, null, 2) }],
       };
     }
 
