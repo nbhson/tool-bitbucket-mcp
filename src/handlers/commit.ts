@@ -1,20 +1,26 @@
 import { apiClient } from "../config.js";
+import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
 
-export async function handleGetRepoCommits(args: {
-  projectKey: string;
-  repoSlug: string;
-  until?: string;
-  since?: string;
-}) {
-  const { projectKey, repoSlug, until, since } = args;
-  const params: any = {};
+export async function handleGetRepoCommits(
+  args: {
+    projectKey: string;
+    repoSlug: string;
+    until?: string;
+    since?: string;
+    path?: string;
+  } & PaginationArgs,
+) {
+  const { projectKey, repoSlug, until, since, path, ...page } = args;
+  const { limit, start } = pageParams(page);
+  const params: Record<string, unknown> = { limit, start };
   if (until) params.until = until;
   if (since) params.since = since;
+  if (path) params.path = path;
   const response = await apiClient.get(
     `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/commits`,
-    { params }
+    { params },
   );
-  return response.data.values;
+  return toPage(response.data, limit, start);
 }
 
 export async function handleGetCommitDetail(args: {
@@ -26,7 +32,7 @@ export async function handleGetCommitDetail(args: {
   const { projectKey, repoSlug, commitId, detail = "metadata" } = args;
 
   const commitResponse = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/commits/${commitId}`
+    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/commits/${commitId}`,
   );
   const commit = commitResponse.data;
 
@@ -36,7 +42,7 @@ export async function handleGetCommitDetail(args: {
 
   const diffResponse = await apiClient.get(
     `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/compare/diff`,
-    { params: { from: `${commitId}^`, to: commitId } }
+    { params: { from: `${commitId}^`, to: commitId } },
   );
   const diffs = diffResponse.data.diffs || [];
 

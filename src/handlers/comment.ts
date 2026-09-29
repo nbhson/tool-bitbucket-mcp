@@ -42,7 +42,7 @@ export async function handleAddComment(args: {
 
   const response = await apiClient.post(
     `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments`,
-    payload
+    payload,
   );
   return response.data;
 }

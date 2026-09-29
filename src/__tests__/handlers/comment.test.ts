@@ -30,7 +30,7 @@ describe("comment handlers", () => {
 
       expect(apiClient.post).toHaveBeenCalledWith(
         "/rest/api/1.0/projects/PROJ/repos/repo/pull-requests/1/comments",
-        { text: "Looks good!" }
+        { text: "Looks good!" },
       );
       expect(result).toEqual(mockComment);
     });
@@ -46,10 +46,10 @@ describe("comment handlers", () => {
         parentId: 10,
       });
 
-      expect(apiClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        { text: "Reply", parent: { id: 10 } }
-      );
+      expect(apiClient.post).toHaveBeenCalledWith(expect.any(String), {
+        text: "Reply",
+        parent: { id: 10 },
+      });
     });
 
     it("should add an inline comment with anchor", async () => {
@@ -78,7 +78,7 @@ describe("comment handlers", () => {
             line: 42,
             lineType: "ADDED",
           }),
-        })
+        }),
       );
     });
 
@@ -93,10 +93,10 @@ describe("comment handlers", () => {
         severity: "BLOCKER",
       });
 
-      expect(apiClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        { text: "Must fix", severity: "BLOCKER" }
-      );
+      expect(apiClient.post).toHaveBeenCalledWith(expect.any(String), {
+        text: "Must fix",
+        severity: "BLOCKER",
+      });
     });
   });
 
@@ -114,10 +114,10 @@ describe("comment handlers", () => {
         text: "Updated text",
       });
 
-      expect(apiClient.put).toHaveBeenCalledWith(
-        expect.any(String),
-        { version: 1, text: "Updated text" }
-      );
+      expect(apiClient.put).toHaveBeenCalledWith(expect.any(String), {
+        version: 1,
+        text: "Updated text",
+      });
     });
 
     it("should throw on edit without text", async () => {
@@ -129,7 +129,7 @@ describe("comment handlers", () => {
           commentId: 1,
           version: 1,
           action: "edit",
-        })
+        }),
       ).rejects.toThrow("Parameter 'text' is required when action is 'edit'");
     });
 
@@ -145,10 +145,7 @@ describe("comment handlers", () => {
         action: "delete",
       });
 
-      expect(apiClient.delete).toHaveBeenCalledWith(
-        expect.any(String),
-        { params: { version: 1 } }
-      );
+      expect(apiClient.delete).toHaveBeenCalledWith(expect.any(String), { params: { version: 1 } });
       expect(result).toBe("Comment/Task 5 has been successfully deleted.");
     });
 
@@ -164,10 +161,10 @@ describe("comment handlers", () => {
         action: "resolve",
       });
 
-      expect(apiClient.put).toHaveBeenCalledWith(
-        expect.any(String),
-        { version: 1, state: "RESOLVED" }
-      );
+      expect(apiClient.put).toHaveBeenCalledWith(expect.any(String), {
+        version: 1,
+        state: "RESOLVED",
+      });
     });
 
     it("should throw on invalid action", async () => {
@@ -179,7 +176,7 @@ describe("comment handlers", () => {
           commentId: 1,
           version: 1,
           action: "invalid",
-        })
+        }),
       ).rejects.toThrow("Invalid action: invalid");
     });
   });

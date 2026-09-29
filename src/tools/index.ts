@@ -6,10 +6,20 @@ import { Tool } from "@modelcontextprotocol/sdk/types.js";
 
 export const LIST_PROJECTS_TOOL: Tool = {
   name: "list_projects",
-  description: "List all projects the user has access to in Bitbucket Server",
+  description:
+    "List all projects the user has access to in Bitbucket Server. Returns a paged envelope { values, isLastPage, nextPageStart }.",
   inputSchema: {
     type: "object",
-    properties: {},
+    properties: {
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 25, max: 1000)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
+    },
   },
 };
 
@@ -34,13 +44,22 @@ export const GET_PROJECT_DETAIL_TOOL: Tool = {
 
 export const LIST_REPOSITORIES_TOOL: Tool = {
   name: "list_repositories",
-  description: "List repositories in a specific Bitbucket Server project",
+  description:
+    "List repositories in a specific Bitbucket Server project. Returns a paged envelope { values, isLastPage, nextPageStart }.",
   inputSchema: {
     type: "object",
     properties: {
       projectKey: {
         type: "string",
         description: "The project key (e.g., PROJ)",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 100, max: 1000)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
       },
     },
     required: ["projectKey"],
@@ -70,13 +89,73 @@ export const SEARCH_REPOSITORIES_TOOL: Tool = {
   },
 };
 
+export const FORK_REPOSITORY_TOOL: Tool = {
+  name: "fork_repository",
+  description: "Fork a Bitbucket Server repository into a target project",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The source project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The source repository slug",
+      },
+      targetProjectKey: {
+        type: "string",
+        description: "The project key to fork into",
+      },
+      name: {
+        type: "string",
+        description: "Optional name for the fork (defaults to source name)",
+      },
+      slug: {
+        type: "string",
+        description: "Optional slug for the fork",
+      },
+    },
+    required: ["projectKey", "repoSlug", "targetProjectKey"],
+  },
+};
+
+export const LIST_WEBHOOKS_TOOL: Tool = {
+  name: "list_webhooks",
+  description:
+    "List webhooks configured on a Bitbucket Server repository. Returns a paged envelope.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 25)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
+    },
+    required: ["projectKey", "repoSlug"],
+  },
+};
+
 // ==========================================
 // Branch Tools
 // ==========================================
 
 export const GET_REPO_BRANCHES_TOOL: Tool = {
   name: "get_repo_branches",
-  description: "List branches in a Bitbucket Server repository",
+  description:
+    "List branches in a Bitbucket Server repository. Returns a paged envelope { values, isLastPage, nextPageStart }.",
   inputSchema: {
     type: "object",
     properties: {
@@ -91,6 +170,33 @@ export const GET_REPO_BRANCHES_TOOL: Tool = {
       filterText: {
         type: "string",
         description: "Optional filter to search branch names",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 100)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
+    },
+    required: ["projectKey", "repoSlug"],
+  },
+};
+
+export const GET_DEFAULT_BRANCH_TOOL: Tool = {
+  name: "get_default_branch",
+  description: "Get the default branch of a Bitbucket Server repository",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
       },
     },
     required: ["projectKey", "repoSlug"],
@@ -119,6 +225,10 @@ export const CREATE_BRANCH_TOOL: Tool = {
         type: "string",
         description: "The commit, branch, or tag to create the branch from (e.g., refs/heads/main)",
       },
+      message: {
+        type: "string",
+        description: "Optional commit message if the start point is a commit",
+      },
     },
     required: ["projectKey", "repoSlug", "name", "startPoint"],
   },
@@ -142,6 +252,10 @@ export const DELETE_BRANCH_TOOL: Tool = {
         type: "string",
         description: "The full branch name to delete (e.g., refs/heads/feature-branch)",
       },
+      dryRun: {
+        type: "boolean",
+        description: "If true, only check whether the branch can be deleted (default: false)",
+      },
     },
     required: ["projectKey", "repoSlug", "branchName"],
   },
@@ -153,7 +267,8 @@ export const DELETE_BRANCH_TOOL: Tool = {
 
 export const GET_REPO_COMMITS_TOOL: Tool = {
   name: "get_repo_commits",
-  description: "List recent commits in a Bitbucket Server repository",
+  description:
+    "List recent commits in a Bitbucket Server repository. Returns a paged envelope { values, isLastPage, nextPageStart }.",
   inputSchema: {
     type: "object",
     properties: {
@@ -172,6 +287,18 @@ export const GET_REPO_COMMITS_TOOL: Tool = {
       since: {
         type: "string",
         description: "Commit SHA to list commits since",
+      },
+      path: {
+        type: "string",
+        description: "Optional file path to filter commit history",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 25)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
       },
     },
     required: ["projectKey", "repoSlug"],
@@ -214,7 +341,8 @@ export const GET_COMMIT_DETAIL_TOOL: Tool = {
 
 export const GET_REPO_TAGS_TOOL: Tool = {
   name: "get_repo_tags",
-  description: "List tags in a Bitbucket Server repository",
+  description:
+    "List tags in a Bitbucket Server repository. Returns a paged envelope { values, isLastPage, nextPageStart }.",
   inputSchema: {
     type: "object",
     properties: {
@@ -230,6 +358,14 @@ export const GET_REPO_TAGS_TOOL: Tool = {
         type: "string",
         description: "Optional filter to search tag names",
       },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 100)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
     },
     required: ["projectKey", "repoSlug"],
   },
@@ -241,7 +377,8 @@ export const GET_REPO_TAGS_TOOL: Tool = {
 
 export const GET_PULL_REQUESTS_TOOL: Tool = {
   name: "get_pull_requests",
-  description: "Get pull requests for a repository",
+  description:
+    "Get pull requests for a repository. Returns a paged envelope { values, isLastPage, nextPageStart }.",
   inputSchema: {
     type: "object",
     properties: {
@@ -255,9 +392,20 @@ export const GET_PULL_REQUESTS_TOOL: Tool = {
       },
       state: {
         type: "string",
-        description:
-          "State of pull requests to retrieve (e.g., OPEN, MERGED, DECLINED, ALL)",
+        description: "State of pull requests to retrieve (e.g., OPEN, MERGED, DECLINED, ALL)",
         default: "OPEN",
+      },
+      order: {
+        type: "string",
+        description: "Sort order: OLDEST (default) or NEWEST",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 25)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
       },
     },
     required: ["projectKey", "repoSlug"],
@@ -353,6 +501,11 @@ export const MERGE_PULL_REQUEST_TOOL: Tool = {
         type: "string",
         description: "The merge commit message",
       },
+      strategy: {
+        type: "string",
+        description:
+          "Optional merge strategy id (e.g., squash, squash-ff-only). Omit for server default.",
+      },
     },
     required: ["projectKey", "repoSlug", "pullRequestId", "version"],
   },
@@ -389,9 +542,9 @@ export const DECLINE_PULL_REQUEST_TOOL: Tool = {
   },
 };
 
-export const GET_PULL_REQUEST_COMMENTS_TOOL: Tool = {
-  name: "get_pull_request_comments",
-  description: "Get comments on a specific pull request",
+export const REOPEN_PULL_REQUEST_TOOL: Tool = {
+  name: "reopen_pull_request",
+  description: "Reopen a declined pull request in a Bitbucket Server repository",
   inputSchema: {
     type: "object",
     properties: {
@@ -406,6 +559,153 @@ export const GET_PULL_REQUEST_COMMENTS_TOOL: Tool = {
       pullRequestId: {
         type: "number",
         description: "The pull request ID",
+      },
+      version: {
+        type: "number",
+        description: "The current version of the pull request (auto-fetched if omitted)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId"],
+  },
+};
+
+export const GET_PULL_REQUEST_MERGE_STATUS_TOOL: Tool = {
+  name: "get_pull_request_merge_status",
+  description: "Check whether a pull request can be merged (conflicts, vetoes, required checks)",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId"],
+  },
+};
+
+export const GET_PULL_REQUEST_COMMENTS_TOOL: Tool = {
+  name: "get_pull_request_comments",
+  description:
+    "Get comments on a specific pull request. Returns a paged envelope { values, isLastPage, nextPageStart }.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 100)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId"],
+  },
+};
+
+export const GET_PULL_REQUEST_ACTIVITIES_TOOL: Tool = {
+  name: "get_pull_request_activities",
+  description:
+    "Get the activity stream of a pull request (comments, approvals, merges). Returns a paged envelope.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 100)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId"],
+  },
+};
+
+export const GET_PULL_REQUEST_REVIEWERS_TOOL: Tool = {
+  name: "get_pull_request_reviewers",
+  description: "List participants/reviewers of a pull request with their approval status",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+    },
+    required: ["projectKey", "repoSlug", "pullRequestId"],
+  },
+};
+
+export const GET_PULL_REQUEST_TASKS_TOOL: Tool = {
+  name: "get_pull_request_tasks",
+  description:
+    "List blocker tasks (BLOCKER-severity comments) on a pull request, optionally filtered by state",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      pullRequestId: {
+        type: "number",
+        description: "The pull request ID",
+      },
+      state: {
+        type: "string",
+        enum: ["OPEN", "RESOLVED", "ALL"],
+        description: "Task state filter (default: OPEN)",
+      },
+      max_results: {
+        type: "number",
+        description: "Maximum number of tasks to return (default: 100)",
       },
     },
     required: ["projectKey", "repoSlug", "pullRequestId"],
@@ -430,6 +730,10 @@ export const GET_PULL_REQUEST_DIFF_TOOL: Tool = {
         type: "number",
         description: "The pull request ID",
       },
+      path: {
+        type: "string",
+        description: "Optional file path to limit the diff to",
+      },
     },
     required: ["projectKey", "repoSlug", "pullRequestId"],
   },
@@ -437,7 +741,7 @@ export const GET_PULL_REQUEST_DIFF_TOOL: Tool = {
 
 export const LIST_PR_COMMITS_TOOL: Tool = {
   name: "list_pr_commits",
-  description: "List commits on a specific pull request with pagination",
+  description: "List commits on a specific pull request with pagination. Returns a paged envelope.",
   inputSchema: {
     type: "object",
     properties: {
@@ -457,6 +761,10 @@ export const LIST_PR_COMMITS_TOOL: Tool = {
         type: "number",
         description: "Maximum number of commits to return (default: 100)",
       },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
     },
     required: ["projectKey", "repoSlug", "pullRequestId"],
   },
@@ -465,7 +773,7 @@ export const LIST_PR_COMMITS_TOOL: Tool = {
 export const SET_REVIEW_STATUS_TOOL: Tool = {
   name: "set_review_status",
   description:
-    "Set review status on a pull request: APPROVED, NEEDS_WORK, or UNAPPROVED. One call, mutually exclusive states.",
+    "Set the caller's own review status on a pull request: APPROVED, NEEDS_WORK, or UNAPPROVED. Acts as the authenticated user via the participants endpoint without touching other reviewers.",
   inputSchema: {
     type: "object",
     properties: {
@@ -655,14 +963,7 @@ export const MANAGE_COMMENT_TOOL: Tool = {
         description: "The updated text of the comment (required for 'edit')",
       },
     },
-    required: [
-      "projectKey",
-      "repoSlug",
-      "pullRequestId",
-      "commentId",
-      "version",
-      "action",
-    ],
+    required: ["projectKey", "repoSlug", "pullRequestId", "commentId", "version", "action"],
   },
 };
 
@@ -690,8 +991,7 @@ export const GET_FILE_CONTENT_TOOL: Tool = {
       },
       at: {
         type: "string",
-        description:
-          "The commit hash, branch name, or tag (e.g., refs/heads/main)",
+        description: "The commit hash, branch name, or tag (e.g., refs/heads/main)",
       },
     },
     required: ["projectKey", "repoSlug", "path"],
@@ -700,8 +1000,7 @@ export const GET_FILE_CONTENT_TOOL: Tool = {
 
 export const GET_DIRECTORY_LISTING_TOOL: Tool = {
   name: "get_directory_listing",
-  description:
-    "List files and directories at a given path in a Bitbucket Server repository",
+  description: "List files and directories at a given path in a Bitbucket Server repository",
   inputSchema: {
     type: "object",
     properties: {
@@ -719,8 +1018,15 @@ export const GET_DIRECTORY_LISTING_TOOL: Tool = {
       },
       at: {
         type: "string",
-        description:
-          "The commit hash, branch name, or tag (e.g., refs/heads/main)",
+        description: "The commit hash, branch name, or tag (e.g., refs/heads/main)",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of entries per page (default: 500)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index for pagination",
       },
     },
     required: ["projectKey", "repoSlug"],
@@ -729,8 +1035,7 @@ export const GET_DIRECTORY_LISTING_TOOL: Tool = {
 
 export const GET_FILE_DIFF_TOOL: Tool = {
   name: "get_file_diff",
-  description:
-    "Get the diff between two commits or branches for a specific file or all files",
+  description: "Get the diff between two commits or branches for a specific file or all files",
   inputSchema: {
     type: "object",
     properties: {
@@ -759,6 +1064,110 @@ export const GET_FILE_DIFF_TOOL: Tool = {
   },
 };
 
+export const GET_FILE_HISTORY_TOOL: Tool = {
+  name: "get_file_history",
+  description: "Get commit history for a single file. Returns a paged envelope of commits.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      path: {
+        type: "string",
+        description: "The file path in the repository",
+      },
+      at: {
+        type: "string",
+        description: "The commit hash, branch name, or tag",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 25)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "path"],
+  },
+};
+
+export const GET_COMMIT_COMPARE_TOOL: Tool = {
+  name: "get_commit_compare",
+  description:
+    "List commits between two refs (fromRef..toRef), useful for changelogs and release notes",
+  inputSchema: {
+    type: "object",
+    properties: {
+      projectKey: {
+        type: "string",
+        description: "The project key (e.g., PROJ)",
+      },
+      repoSlug: {
+        type: "string",
+        description: "The repository slug",
+      },
+      fromRef: {
+        type: "string",
+        description: "The source commit/branch/tag (exclusive)",
+      },
+      toRef: {
+        type: "string",
+        description: "The target commit/branch/tag (inclusive)",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of commits (default: 100)",
+      },
+    },
+    required: ["projectKey", "repoSlug", "fromRef", "toRef"],
+  },
+};
+
+// ==========================================
+// User Tools
+// ==========================================
+
+export const GET_CURRENT_USER_TOOL: Tool = {
+  name: "get_current_user",
+  description:
+    "Get the Bitbucket user bound to the configured token. Use it to resolve reviewer names.",
+  inputSchema: {
+    type: "object",
+    properties: {},
+  },
+};
+
+export const SEARCH_USERS_TOOL: Tool = {
+  name: "search_users",
+  description: "Search Bitbucket users by name, slug, or email. Returns a paged envelope.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Search query for user display name, slug, or email",
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of items per page (default: 25)",
+      },
+      start: {
+        type: "number",
+        description: "Zero-based start index (use nextPageStart from previous response)",
+      },
+    },
+    required: ["query"],
+  },
+};
+
 // ==========================================
 // Search Tools
 // ==========================================
@@ -781,6 +1190,10 @@ export const SEARCH_CODE_TOOL: Tool = {
         type: "string",
         description: "The search query string",
       },
+      limit: {
+        type: "number",
+        description: "Maximum number of results (default: 25)",
+      },
     },
     required: ["projectKey", "repoSlug", "query"],
   },
@@ -789,9 +1202,9 @@ export const SEARCH_CODE_TOOL: Tool = {
 export const GREP_TOOL: Tool = {
   name: "grep",
   description:
-    "Regex search file contents across a repository, like ripgrep on a local clone. " +
+    "Regex search file contents across a repository, like ripgrep over index-backed candidates. " +
     "Supports content/files/count modes, filename glob, path filtering, context lines, and case-insensitive search. " +
-    "One archive download per repo+commit, streamed in constant memory, cached in-process.",
+    "Defaults to the repository's default branch when ref is omitted.",
   inputSchema: {
     type: "object",
     properties: {
@@ -823,13 +1236,11 @@ export const GREP_TOOL: Tool = {
       },
       path: {
         type: "string",
-        description:
-          "Directory path prefix to limit search scope (e.g., 'src/main')",
+        description: "Directory path prefix to limit search scope (e.g., 'src/main')",
       },
       context_lines: {
         type: "number",
-        description:
-          "Number of context lines before/after each match in content mode (default: 0)",
+        description: "Number of context lines before/after each match in content mode (default: 0)",
       },
       case_insensitive: {
         type: "boolean",
@@ -838,6 +1249,10 @@ export const GREP_TOOL: Tool = {
       max_results: {
         type: "number",
         description: "Maximum number of results to return (default: 200)",
+      },
+      max_files: {
+        type: "number",
+        description: "Maximum number of candidate files to fetch content for (default: 50)",
       },
     },
     required: ["projectKey", "repoSlug", "query"],
@@ -855,8 +1270,11 @@ export const ALL_TOOLS: Tool[] = [
   // Repository
   LIST_REPOSITORIES_TOOL,
   SEARCH_REPOSITORIES_TOOL,
+  FORK_REPOSITORY_TOOL,
+  LIST_WEBHOOKS_TOOL,
   // Branch
   GET_REPO_BRANCHES_TOOL,
+  GET_DEFAULT_BRANCH_TOOL,
   CREATE_BRANCH_TOOL,
   DELETE_BRANCH_TOOL,
   // Commit
@@ -870,7 +1288,12 @@ export const ALL_TOOLS: Tool[] = [
   GET_PULL_REQUEST_DETAIL_TOOL,
   MERGE_PULL_REQUEST_TOOL,
   DECLINE_PULL_REQUEST_TOOL,
+  REOPEN_PULL_REQUEST_TOOL,
+  GET_PULL_REQUEST_MERGE_STATUS_TOOL,
   GET_PULL_REQUEST_COMMENTS_TOOL,
+  GET_PULL_REQUEST_ACTIVITIES_TOOL,
+  GET_PULL_REQUEST_REVIEWERS_TOOL,
+  GET_PULL_REQUEST_TASKS_TOOL,
   GET_PULL_REQUEST_DIFF_TOOL,
   LIST_PR_COMMITS_TOOL,
   SET_REVIEW_STATUS_TOOL,
@@ -882,6 +1305,11 @@ export const ALL_TOOLS: Tool[] = [
   GET_FILE_CONTENT_TOOL,
   GET_DIRECTORY_LISTING_TOOL,
   GET_FILE_DIFF_TOOL,
+  GET_FILE_HISTORY_TOOL,
+  GET_COMMIT_COMPARE_TOOL,
+  // Users
+  GET_CURRENT_USER_TOOL,
+  SEARCH_USERS_TOOL,
   // Search
   SEARCH_CODE_TOOL,
   GREP_TOOL,
