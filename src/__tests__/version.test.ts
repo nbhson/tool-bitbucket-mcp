@@ -4,8 +4,10 @@ import { pageParams, toPage } from "../pagination.js";
 
 describe("version", () => {
   it("should match package.json", async () => {
-    const pkg = await import("../../package.json");
-    expect(SERVER_VERSION).toBe(pkg.version);
+    const pkg = (await import("../../package.json")) as unknown as {
+      default: { version: string };
+    };
+    expect(SERVER_VERSION).toBe(pkg.default.version);
     expect(SERVER_NAME).toBe("bitbucket-server-mcp");
   });
 });
