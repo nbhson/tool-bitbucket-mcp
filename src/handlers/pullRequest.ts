@@ -265,10 +265,13 @@ export async function handleSetReviewStatus(args: {
   const me = await apiClient.get("/rest/api/1.0/users/current");
   const slug: string | undefined = me.data?.slug;
   const name: string | undefined = me.data?.name;
-  if (!slug && !name) {
+  const userKey = slug ?? name;
+  if (!userKey) {
     throw new Error("Could not determine the current user (GET /users/current).");
   }
-  const userKey = slug || name;
+  if (!userKey) {
+    throw new Error("Could not determine the current user (GET /users/current).");
+  }
 
   const payload =
     normalized === "APPROVED"
@@ -278,7 +281,7 @@ export async function handleSetReviewStatus(args: {
         : { user: { name }, approved: false, status: "UNAPPROVED" };
 
   const response = await apiClient.put(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/participants/${encodeURIComponent(userKey!)}`,
+    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/participants/${encodeURIComponent(userKey)}`,
     payload,
     { headers: { "X-Atlassian-Token": "no-check" } },
   );

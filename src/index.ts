@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 
-import { createServer as createHttpServer } from "node:http";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { createServer as createHttpServer } from "node:http";
+
 import { getConfig } from "./config.js";
 import { routeToolCall } from "./handlers/index.js";
-import { SERVER_NAME, SERVER_VERSION } from "./version.js";
 import { ALL_TOOLS } from "./tools/index.js";
+import { SERVER_NAME, SERVER_VERSION } from "./version.js";
 
 function formatToolError(error: any): string {
   const status = error?.response?.status;
@@ -133,8 +134,8 @@ async function runHttp(port: number, endpoint: string): Promise<void> {
     }
   });
 
-  await new Promise<void>((resolve) => httpServer.listen(port, resolve));
-  console.error(`[bitbucket-mcp] v${SERVER_VERSION} listening on :${port}${endpoint}`);
+  await new Promise<void>((resolve) => httpServer.listen(port, '127.0.0.1', resolve));
+  console.error(`[bitbucket-mcp] v${SERVER_VERSION} listening on 127.0.0.1:${port}${endpoint}`);
 }
 
 async function run(): Promise<void> {

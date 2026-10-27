@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.5.0
+
+### Dependencies
+
+- **zod**: Upgraded from `^3.25.76` (v3) to `^4.6.7` (v4). Updated all schema
+  definitions to use the new error message API (`{ message }` instead of
+  `{ required_error }` / per-rule message strings). All 61 tests pass on zod 4.
+- **@types/node**: Bumped to `^22.13.0` (aligned with workspace).
+- **axios**: Upgraded from `^1.18.1` to `^1.7.9`.
+- **eslint**: Added flat config (`eslint.config.js`) with `@typescript-eslint` strict rules.
+- **prettier**: Already configured (`.prettierrc`).
+
+### Features
+
+- **Structured logging**: Added `logDebug`, `logInfo`, `logWarn`, `logError`,
+  `setLogLevel`, and `LogLevel` enum for consistent log output with metadata.
+- **Custom error types**: `BitbucketError`, `ConfigurationError`, `ValidationError`,
+  `RateLimitError` with structured fields (`statusCode`, `originalError`, etc.).
+- **Better error formatting**: `formatApiError()` produces actionable messages from
+  Bitbucket API responses (HTTP status, server-side error messages).
+- **Enhanced logging**: API client logs initialization, retries, and responses.
+
+### Code Quality
+
+- ESLint flat config with strict TypeScript rules.
+- All 61 tests pass.
+- Format check with Prettier passes.
+- Build passes cleanly (`tsc --noEmit` + `tsc`).
+
+### Documentation
+
+- Fixed repository URL in `package.json` (GitHub → Bitbucket).
+- Added troubleshooting section to `README.md`.
+- Added example prompts for each tool category.
+- Repository URL now prominently displayed in `README.md`.
+
 ## 1.4.0
 
 ### Breaking changes

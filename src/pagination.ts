@@ -8,10 +8,21 @@ import { z } from "zod";
  * that contract consistent across tools.
  */
 
-export const PaginationSchema = z.object({
-  limit: z.coerce.number().int().min(1).max(1000).optional(),
-  start: z.coerce.number().int().min(0).optional(),
-});
+export const PaginationSchema = z
+  .object({
+    limit: z.coerce
+      .number({ message: "limit must be a number" })
+      .int("limit must be an integer")
+      .min(1, "limit must be at least 1")
+      .max(1000, "limit must be at most 1000")
+      .optional(),
+    start: z.coerce
+      .number({ message: "start must be a number" })
+      .int("start must be an integer")
+      .min(0, "start must be non-negative")
+      .optional(),
+  })
+  .strict();
 
 export type PaginationArgs = z.infer<typeof PaginationSchema>;
 
@@ -27,7 +38,13 @@ export interface PageEnvelope<T> {
 
 const DEFAULT_LIMIT = 25;
 
-/** Extract `start`/`limit` with safe defaults. Never throws. */
+/**
+ * Extract `start`/`limit` with safe defaults. Never throws.
+ *
+ * @param args - Raw pagination arguments from the MCP tool call
+ * @param fallbackLimit - Default limit when not specified (default: 25)
+ * @returns Object containing validated `limit` and `start` values
+ */
 export function pageParams(
   args: PaginationArgs,
   fallbackLimit = DEFAULT_LIMIT,
@@ -41,7 +58,14 @@ export function pageParams(
   return { limit, start };
 }
 
-/** Wrap a Bitbucket paged response in a stable envelope. */
+/**
+ * Wrap a Bitbucket paged response in a stable envelope.
+ *
+ * @param data - Raw Bitbucket API response data
+ * @param limit - Requested page size
+ * @param start - Requested start index
+ * @returns Normalized page envelope with values, size, isLastPage, nextPageStart
+ */
 export function toPage<T>(data: any, limit: number, start: number): PageEnvelope<T> {
   const values = (data?.values ?? []) as T[];
   const isLastPage = data?.isLastPage ?? true;

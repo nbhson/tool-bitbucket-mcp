@@ -1,6 +1,6 @@
 {
   "name": "sbitbucket-mcp-server",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "main": "build/index.js",
   "bin": {
@@ -20,7 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "tsc --noEmit",
+    "lint": "eslint src && tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\" \"*.{json,md}\"",
     "format:check": "prettier --check \"src/**/*.ts\" \"*.{json,md}\""
   },
@@ -36,22 +36,29 @@
   "description": "MCP server for Bitbucket Server integration",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nbhson/tool-bitbucket-mcp.git"
+    "url": "https://bitbucket.org/nbhson/tool-bitbucket-mcp.git"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "axios": "^1.18.1",
+    "axios": "^1.7.9",
     "dotenv": "^17.4.2",
-    "zod": "^3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^22.13.0",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "prettier": "^3.6.2",
-    "typescript": "^6.0.3",
+    "eslint": "^9.20.0",
+    "eslint-plugin-import-x": "^4.6.1",
+    "globals": "^15.14.0",
+    "prettier": "^3.5.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.25.0",
     "vitest": "^4.1.10"
   }
 }

@@ -1,6 +1,8 @@
 # Bitbucket MCP Server
 
-MCP (Model Context Protocol) server for Bitbucket Server (Data Center) integration. This server provides tools to interact with Bitbucket Server APIs via Personal Access Token (PAT) authentication.
+> **Repository:** https://bitbucket.org/nbhson/tool-bitbucket-mcp
+> MCP (Model Context Protocol) server for Bitbucket Server (Data Center) integration.
+> This server provides tools to interact with Bitbucket Server APIs via Personal Access Token (PAT) authentication.
 
 ## Tools (39)
 
@@ -153,10 +155,16 @@ Stdio (default, for Claude Desktop / Cline / VS Code):
 npx sbitbucket-mcp-server
 ```
 
-Streamable HTTP (stateless, for remote hosting):
+Streamable HTTP (stateless, binds to **127.0.0.1** by default for security):
 
 ```bash
 npx sbitbucket-mcp-server --http --port=3000 --endpoint=/mcp
+# or: npm run start:http
+
+# NOTE: HTTP transport binds to 127.0.0.1 — only accessible locally.
+# To bind on all interfaces (INSECURE — anyone on the network can invoke
+# your Bitbucket PAT), override with HOST=0.0.0.0 in the environment.
+# For remote hosting, put this behind a reverse proxy with TLS + auth.
 # or: npm run start:http
 ```
 
@@ -207,7 +215,7 @@ npm install
 # Build
 npm run build
 
-# Type-check (lint)
+# Lint with ESLint + TypeScript
 npm run lint
 
 # Format / check formatting
@@ -225,6 +233,103 @@ npm run start:http
 
 # Run tests
 npm test
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**`BITBUCKET_URL must be a valid URL` error**
+
+- Ensure `BITBUCKET_URL` uses `https://` and doesn't end with a trailing slash
+- Example: `https://bitbucket.example.com` (not `https://bitbucket.example.com/`)
+
+**`BITBUCKET_TOKEN is required` error**
+
+- Generate a Personal Access Token (PAT) in Bitbucket:
+  1. Go to **Profile → Personal access tokens**
+  2. Create a token with appropriate permissions (read/write based on your needs)
+  3. Set `BITBUCKET_TOKEN=your-token` in your environment
+
+**TLS/SSL certificate errors**
+
+- For self-signed certificates in dev environments: set `BITBUCKET_INSECURE_SSL=true`
+- **Warning:** Only use this in trusted networks, never in production
+
+**Rate limiting (HTTP 429)**
+
+- The server automatically retries with exponential backoff (default: 2 retries)
+- Adjust `BITBUCKET_MAX_RETRIES` for more retries
+- For heavy workloads, consider adding delays between requests
+
+**Branch names with slashes fail to delete**
+
+- Branch names containing `/` must be passed as full ref: `refs/heads/feature/my-branch`
+
+**Merge conflicts not detected**
+
+- Use `get_pull_request_merge_status` to check for conflicts before merging
+- Check `vetoes` array in the response for blocking reviews
+
+### Debug Mode
+
+Enable verbose logging by checking the console output:
+
+```bash
+# Stdio mode logs to stderr
+npm start 2>debug.log
+```
+
+### Performance Tips
+
+- **Pagination:** Always use pagination for large result sets
+- **Search:** Use `grep` with specific paths (`path` parameter) for faster results
+- **Batch operations:** Use `Promise.allSettled` for concurrent operations
+
+## Example Prompts
+
+Here are example prompts for each tool category:
+
+### Project Operations
+
+```
+"List all projects I'm a member of"
+"Get details of the PROJ1 project"
+```
+
+### Repository Operations
+
+```
+"List repositories in the PROJ1 project"
+"Find repositories with 'api' in the name"
+"Fork the myrepo repository from PROJ1 to PROJ2"
+```
+
+### Branch Operations
+
+```
+"List all branches in myrepo"
+"Get the default branch for myrepo"
+"Create a new branch feature/login from main"
+"Delete the old-feature branch"
+```
+
+### Pull Request Operations
+
+```
+"Get all open pull requests in myrepo"
+"Create a PR from feature branch to main"
+"Check if PR #42 can be merged"
+"Approve the pull request"
+"Add a comment to PR #42: 'LGTM!'"
+```
+
+### Code Search
+
+```
+"Find all occurrences of 'TODO' in the codebase"
+"Search for files containing 'auth' in the src directory"
+"Get the diff between main and feature branch"
 ```
 
 ## Project Structure
