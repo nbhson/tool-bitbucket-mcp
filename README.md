@@ -355,7 +355,7 @@ src/
 │   ├── user.ts           # User operations
 │   └── search.ts         # Search operations
 └── __tests__/
-    └── handlers/         # Vitest suites (57 tests)
+    └── handlers/         # Vitest suites (61 tests)
 ```
 
 ## License
