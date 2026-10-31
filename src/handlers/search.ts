@@ -98,7 +98,7 @@ function compileQuery(query: string, caseInsensitive: boolean): RegExp {
   try {
     return new RegExp(query, caseInsensitive ? "gi" : "g");
   } catch (err: any) {
-    throw new Error(`Invalid regex query: ${err?.message || err}`);
+    throw new Error(`Invalid regex query: ${err?.message || err}`, { cause: err });
   }
 }
 
