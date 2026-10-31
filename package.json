@@ -1,6 +1,6 @@
 {
   "name": "@nbhson43/s-bitbucket-mcp-server",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "type": "module",
   "main": "build/index.js",
   "bin": {

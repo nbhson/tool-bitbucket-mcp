@@ -132,16 +132,17 @@ docker run --rm -p 3000:3000 \
 
 Copy `.env.example` to `.env` and fill in the values:
 
-| Variable                 | Required | Default | Description                                                                       |
-| ------------------------ | -------- | ------- | --------------------------------------------------------------------------------- |
-| `BITBUCKET_URL`          | Yes      | —       | Your Bitbucket Server URL (e.g., `https://bitbucket.example.com`)                 |
-| `BITBUCKET_TOKEN`        | Yes      | —       | Personal Access Token (PAT) for authentication                                    |
-| `BITBUCKET_INSECURE_SSL` | No       | `false` | Set to `true` to skip TLS verification (self-signed certs, trusted networks only) |
-| `BITBUCKET_TIMEOUT_MS`   | No       | `30000` | Per-request timeout in milliseconds                                               |
-| `BITBUCKET_MAX_RETRIES`  | No       | `2`     | Retries with backoff on HTTP 429/5xx                                              |
-| `MCP_TRANSPORT`          | No       | `stdio` | `stdio` or `http`                                                                 |
-| `PORT`                   | No       | `3000`  | HTTP port in `http` mode                                                          |
-| `MCP_ENDPOINT`           | No       | `/mcp`  | HTTP endpoint path in `http` mode                                                 |
+| Variable                 | Required | Default     | Description                                                                       |
+| ------------------------ | -------- | ----------- | --------------------------------------------------------------------------------- |
+| `BITBUCKET_URL`          | Yes      | —           | Your Bitbucket Server URL (e.g., `https://bitbucket.example.com`)                 |
+| `BITBUCKET_TOKEN`        | Yes      | —           | Personal Access Token (PAT) for authentication                                    |
+| `BITBUCKET_INSECURE_SSL` | No       | `false`     | Set to `true` to skip TLS verification (self-signed certs, trusted networks only) |
+| `BITBUCKET_TIMEOUT_MS`   | No       | `30000`     | Per-request timeout in milliseconds                                               |
+| `BITBUCKET_MAX_RETRIES`  | No       | `2`         | Retries with backoff on HTTP 429/5xx                                              |
+| `MCP_TRANSPORT`          | No       | `stdio`     | `stdio` or `http`                                                                 |
+| `PORT`                   | No       | `3000`      | HTTP port in `http` mode                                                          |
+| `MCP_ENDPOINT`           | No       | `/mcp`      | HTTP endpoint path in `http` mode                                                 |
+| `HOST`                   | No       | `127.0.0.1` | HTTP bind address in `http` mode (non-loopback = insecure, warned at startup)     |
 
 > TLS certificates are verified by default. The legacy behavior of blindly
 > accepting any certificate now requires explicit opt-in via
@@ -355,7 +356,7 @@ src/
 │   ├── user.ts           # User operations
 │   └── search.ts         # Search operations
 └── __tests__/
-    └── handlers/         # Vitest suites (61 tests)
+    └── handlers/         # Vitest suites (95 tests)
 ```
 
 ## License

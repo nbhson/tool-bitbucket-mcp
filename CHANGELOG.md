@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.5.1
+
+### Fixed
+
+- **P0 — startup crash (config validation)**: `getConfig()` previously passed the
+  whole `process.env` to a `.strict()` zod schema, so every unrelated system
+  variable (`PATH`, `HOME`, ...) raised "Unrecognized keys" and crashed the
+  server on startup in any real environment. Only `BITBUCKET_*` variables (and
+  `MCP_TRANSPORT`) are now selected before parsing — misspelled Bitbucket
+  options are still rejected.
+- **`get_commit_detail` fail-fast**: an invalid `detail` value is now rejected
+  before any API call instead of after fetching commit + diff.
+- **`get_directory_listing` path handling**: file paths are normalized through
+  a shared `normalizePathString()` helper that safely handles both plain
+  strings and `RestPath` objects (previously a plain-string `path` leaked the
+  `toString` function into the output, which `JSON.stringify` then dropped).
+  `get_commit_detail` (files/full) uses the same helper.
+
+### Security
+
+- **HTTP transport**: optional `HOST` env variable (documented but previously
+  not implemented) — still defaults to `127.0.0.1`, with a loud warning when
+  binding to a non-loopback address.
+- **HTTP request body cap**: POST bodies larger than 2 MiB are rejected with
+  HTTP 413 instead of being buffered into memory.
+- Duplicated error formatting removed; the tool-call error path now reuses the
+  canonical `formatApiError()` from `config.ts`.
+
+### Code Quality
+
+- Removed duplicated `if (!userKey)` check and ternary chain in
+  `handleSetReviewStatus`.
+- New test suites: `commit`, `tag`, handler registry (`routeToolCall`,
+  required-args validation), config validation (`getConfig`, `formatApiError`),
+  and HTTP host binding (`isLoopbackHost`). 61 → 95 tests, all passing.
+
 ## 1.5.0
 
 ### Dependencies
