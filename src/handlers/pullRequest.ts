@@ -269,16 +269,12 @@ export async function handleSetReviewStatus(args: {
   if (!userKey) {
     throw new Error("Could not determine the current user (GET /users/current).");
   }
-  if (!userKey) {
-    throw new Error("Could not determine the current user (GET /users/current).");
-  }
 
-  const payload =
-    normalized === "APPROVED"
-      ? { user: { name }, approved: true, status: "APPROVED" }
-      : normalized === "NEEDS_WORK"
-        ? { user: { name }, approved: false, status: "NEEDS_WORK" }
-        : { user: { name }, approved: false, status: "UNAPPROVED" };
+  const payload = {
+    user: { name: userKey },
+    approved: normalized === "APPROVED",
+    status: normalized,
+  };
 
   const response = await apiClient.put(
     `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/participants/${encodeURIComponent(userKey)}`,

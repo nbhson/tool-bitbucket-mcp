@@ -1,5 +1,6 @@
 import { apiClient } from "../config.js";
 import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
+import { normalizePathString } from "./pathUtils.js";
 
 export async function handleGetFileContent(args: {
   projectKey: string;
@@ -35,7 +36,7 @@ export async function handleGetDirectoryListing(
   return children.map((child: any) => ({
     name: child.name,
     type: child.type,
-    path: child.path?.toString || child.path,
+    path: normalizePathString(child.path),
   }));
 }
 

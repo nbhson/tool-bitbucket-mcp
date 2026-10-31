@@ -1,5 +1,6 @@
 import { apiClient } from "../config.js";
 import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
+import { normalizePathString } from "./pathUtils.js";
 
 export async function handleGetRepoCommits(
   args: {
@@ -31,6 +32,10 @@ export async function handleGetCommitDetail(args: {
 }) {
   const { projectKey, repoSlug, commitId, detail = "metadata" } = args;
 
+  if (!["metadata", "files", "full"].includes(detail)) {
+    throw new Error(`Invalid detail level: ${detail}. Use 'metadata', 'files', or 'full'.`);
+  }
+
   const commitResponse = await apiClient.get(
     `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/commits/${commitId}`,
   );
@@ -48,11 +53,11 @@ export async function handleGetCommitDetail(args: {
 
   if (detail === "files") {
     const files = diffs.map((d: any) => ({
-      path: d.destination?.toString || d.path,
+      path: normalizePathString(d.destination) ?? normalizePathString(d.path),
       status: d.type,
       linesAdded: d.lineStats?.linesAdded || 0,
       linesRemoved: d.lineStats?.linesRemoved || 0,
-      oldPath: d.source?.toString || null,
+      oldPath: normalizePathString(d.source),
     }));
     return {
       commit: { id: commit.id, message: commit.message, author: commit.author },
@@ -62,10 +67,10 @@ export async function handleGetCommitDetail(args: {
 
   if (detail === "full") {
     const files = diffs.map((d: any) => ({
-      path: d.destination?.toString || d.path,
+      path: normalizePathString(d.destination) ?? normalizePathString(d.path),
       status: d.type,
       diff: d.hunks || d.content || "",
-      oldPath: d.source?.toString || null,
+      oldPath: normalizePathString(d.source),
     }));
     return {
       commit: {
@@ -78,5 +83,5 @@ export async function handleGetCommitDetail(args: {
     };
   }
 
-  throw new Error(`Invalid detail level: ${detail}. Use 'metadata', 'files', or 'full'.`);
+  return commit;
 }
