@@ -6,22 +6,23 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createServer as createHttpServer } from "node:http";
 
-import { getConfig } from "./config.js";
+import { getConfig, formatApiError } from "./config.js";
 import { routeToolCall } from "./handlers/index.js";
 import { ALL_TOOLS } from "./tools/index.js";
 import { SERVER_NAME, SERVER_VERSION } from "./version.js";
 
-function formatToolError(error: any): string {
-  const status = error?.response?.status;
-  const data = error?.response?.data;
-  const bitbucketMessage =
-    typeof data === "string"
-      ? data
-      : data?.errors?.map((e: any) => e.message).join("; ") ||
-        data?.message ||
-        (data ? JSON.stringify(data) : undefined);
-  const message = bitbucketMessage || error?.message || String(error);
-  return status ? `Bitbucket API error (HTTP ${status}): ${message}` : `Error: ${message}`;
+/** Default max HTTP request body size (2 MiB) — guards against memory abuse. */
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+
+/** True for loopback addresses only (safe to expose the PAT-bound server). */
+export function isLoopbackHost(host: string): boolean {
+  return (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1" ||
+    host === "[::1]" ||
+    host.endsWith(".localhost")
+  );
 }
 
 export function createServer(): Server {
@@ -46,9 +47,9 @@ export function createServer(): Server {
         ],
       };
     } catch (error: any) {
-      console.error(`[bitbucket-mcp] tool '${request.params.name}' failed:`, error.message);
+      console.error(`[bitbucket-mcp] tool '${request.params.name}' failed:`, error?.message);
       return {
-        content: [{ type: "text", text: formatToolError(error) }],
+        content: [{ type: "text", text: formatApiError(error) }],
         isError: true,
       };
     }
@@ -80,7 +81,8 @@ function parseArgs(argv: string[]): { http: boolean; port: number; endpoint: str
           `  BITBUCKET_MAX_RETRIES          retries on 429/5xx (default 2)\n` +
           `  MCP_TRANSPORT                  'stdio' (default) or 'http'\n` +
           `  PORT                           HTTP port (default 3000)\n` +
-          `  MCP_ENDPOINT                   HTTP endpoint path (default /mcp)\n`,
+          `  MCP_ENDPOINT                   HTTP endpoint path (default /mcp)\n` +
+          `  HOST                           HTTP bind address (default 127.0.0.1)\n`,
       );
       process.exit(0);
     }
@@ -96,6 +98,16 @@ async function runStdio(): Promise<void> {
 }
 
 async function runHttp(port: number, endpoint: string): Promise<void> {
+  // Bind to loopback by default. HOST=0.0.0.0 exposes the PAT-bound server to
+  // the network — documented as insecure and loudly warned about here.
+  const host = process.env.HOST || "127.0.0.1";
+  if (!isLoopbackHost(host)) {
+    console.error(
+      `[bitbucket-mcp] WARNING: binding on ${host} — anyone on the network can ` +
+        `invoke your Bitbucket PAT. Use a reverse proxy with TLS + auth.`,
+    );
+  }
+
   const httpServer = createHttpServer(async (req, res) => {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
     if (url.pathname !== endpoint) {
@@ -106,7 +118,21 @@ async function runHttp(port: number, endpoint: string): Promise<void> {
     let body: unknown = undefined;
     if (req.method === "POST") {
       const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk as Buffer);
+      let received = 0;
+      let tooLarge = false;
+      for await (const chunk of req) {
+        received += (chunk as Buffer).length;
+        if (received > MAX_BODY_BYTES) {
+          tooLarge = true;
+          break;
+        }
+        chunks.push(chunk as Buffer);
+      }
+      if (tooLarge) {
+        res.writeHead(413, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Request body too large" }));
+        return;
+      }
       const raw = Buffer.concat(chunks).toString("utf8");
       try {
         body = raw ? JSON.parse(raw) : undefined;
@@ -134,8 +160,8 @@ async function runHttp(port: number, endpoint: string): Promise<void> {
     }
   });
 
-  await new Promise<void>((resolve) => httpServer.listen(port, '127.0.0.1', resolve));
-  console.error(`[bitbucket-mcp] v${SERVER_VERSION} listening on 127.0.0.1:${port}${endpoint}`);
+  await new Promise<void>((resolve) => httpServer.listen(port, host, resolve));
+  console.error(`[bitbucket-mcp] v${SERVER_VERSION} listening on ${host}:${port}${endpoint}`);
 }
 
 async function run(): Promise<void> {
