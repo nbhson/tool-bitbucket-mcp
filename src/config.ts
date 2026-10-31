@@ -103,13 +103,30 @@ let cachedConfig: BitbucketConfig | undefined;
 let cachedClient: AxiosInstance | undefined;
 
 /**
+ * Pick only the environment variables the schema knows about.
+ *
+ * `ConfigSchema` is `.strict()`, so handing it the whole `process.env` would
+ * make every unrelated system variable (PATH, HOME, ...) a validation error
+ * and crash the server on startup. Filtering to `BITBUCKET_*` keys keeps the
+ * "unknown option" guard for misspelled Bitbucket settings while ignoring
+ * unrelated environment noise.
+ */
+function pickEnvVars(): Record<string, string | undefined> {
+  const picked: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith("BITBUCKET_") || key === "MCP_TRANSPORT") picked[key] = value;
+  }
+  return picked;
+}
+
+/**
  * Parse + validate env. Throws a human-readable Error when misconfigured.
  *
  * @throws {ConfigurationError} When required environment variables are missing or invalid
  */
 export function getConfig(): BitbucketConfig {
   if (cachedConfig) return cachedConfig;
-  const parsed = ConfigSchema.safeParse(process.env);
+  const parsed = ConfigSchema.safeParse(pickEnvVars());
   if (!parsed.success) {
     const issues = parsed.error.issues;
     const details = issues.map((i) => `- ${i.path.join(".")}: ${i.message}`).join("\n");
