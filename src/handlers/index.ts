@@ -32,6 +32,7 @@ import {
   handleForkRepository,
   handleListWebhooks,
 } from "./repository.js";
+import { TOOL_SCHEMAS, type ToolSchemaMap } from "./schemas.js";
 import { handleSearchCode, handleGrep } from "./search.js";
 import {
   handleGetFileContent,
@@ -43,7 +44,8 @@ import {
 import { handleGetRepoTags } from "./tag.js";
 import { handleGetCurrentUser, handleSearchUsers } from "./user.js";
 
-type Handler = (args: any) => Promise<any>;
+/** Handler đã qua validation schema — args được tạo lại từ zod (coerce số, ...). */
+type Handler = (args: never) => Promise<unknown>;
 
 const handlers: Record<string, Handler> = {
   // Project
@@ -98,53 +100,23 @@ const handlers: Record<string, Handler> = {
 };
 
 /** Required args per tool for fail-fast validation with actionable errors. */
-const REQUIRED_ARGS: Record<string, string[]> = {
-  get_project_detail: ["projectKey"],
-  list_repositories: ["projectKey"],
-  search_repositories: ["query"],
-  fork_repository: ["projectKey", "repoSlug", "targetProjectKey"],
-  list_webhooks: ["projectKey", "repoSlug"],
-  get_repo_branches: ["projectKey", "repoSlug"],
-  get_default_branch: ["projectKey", "repoSlug"],
-  create_branch: ["projectKey", "repoSlug", "name", "startPoint"],
-  delete_branch: ["projectKey", "repoSlug", "branchName"],
-  get_repo_commits: ["projectKey", "repoSlug"],
-  get_commit_detail: ["projectKey", "repoSlug", "commitId"],
-  get_repo_tags: ["projectKey", "repoSlug"],
-  get_pull_requests: ["projectKey", "repoSlug"],
-  create_pull_request: ["projectKey", "repoSlug", "title", "fromRef", "toRef"],
-  get_pull_request_detail: ["projectKey", "repoSlug", "pullRequestId"],
-  merge_pull_request: ["projectKey", "repoSlug", "pullRequestId", "version"],
-  decline_pull_request: ["projectKey", "repoSlug", "pullRequestId", "version"],
-  reopen_pull_request: ["projectKey", "repoSlug", "pullRequestId"],
-  get_pull_request_merge_status: ["projectKey", "repoSlug", "pullRequestId"],
-  get_pull_request_comments: ["projectKey", "repoSlug", "pullRequestId"],
-  get_pull_request_activities: ["projectKey", "repoSlug", "pullRequestId"],
-  get_pull_request_reviewers: ["projectKey", "repoSlug", "pullRequestId"],
-  get_pull_request_tasks: ["projectKey", "repoSlug", "pullRequestId"],
-  get_pull_request_diff: ["projectKey", "repoSlug", "pullRequestId"],
-  list_pr_commits: ["projectKey", "repoSlug", "pullRequestId"],
-  set_review_status: ["projectKey", "repoSlug", "pullRequestId", "status"],
-  update_pull_request: ["projectKey", "repoSlug", "pullRequestId"],
-  add_comment: ["projectKey", "repoSlug", "pullRequestId", "text"],
-  manage_comment: ["projectKey", "repoSlug", "pullRequestId", "commentId", "version", "action"],
-  get_file_content: ["projectKey", "repoSlug", "path"],
-  get_directory_listing: ["projectKey", "repoSlug"],
-  get_file_diff: ["projectKey", "repoSlug", "fromRef", "toRef"],
-  get_file_history: ["projectKey", "repoSlug", "path"],
-  get_commit_compare: ["projectKey", "repoSlug", "fromRef", "toRef"],
-  search_users: ["query"],
-  search_code: ["projectKey", "repoSlug", "query"],
-  grep: ["projectKey", "repoSlug", "query"],
-};
+const MISSING_PREFIX = "Missing required argument: ";
 
 export function listToolNames(): string[] {
   return Object.keys(handlers);
 }
 
+/**
+ * Dispatch một tool call tới handler sau khi validate args qua zod schema.
+ *
+ * Thứ tự lỗi giữ nguyên hành vi cũ:
+ * 1. Tool không tồn tại → "Unknown tool: ... Available tools: ..."
+ * 2. Thiếu arg bắt buộc → "Missing required argument(s) for 'x': a, b"
+ * 3. Arg sai kiểu/ra ràng buộc → "Invalid arguments for 'x': ..." kèm chi tiết
+ */
 export async function routeToolCall(request: CallToolRequest) {
   const toolName = request.params.name;
-  const args = (request.params.arguments as Record<string, any>) || {};
+  const args = (request.params.arguments as Record<string, unknown>) || {};
 
   const handler = handlers[toolName];
   if (!handler) {
@@ -153,11 +125,25 @@ export async function routeToolCall(request: CallToolRequest) {
     );
   }
 
-  const required = REQUIRED_ARGS[toolName] || [];
-  const missing = required.filter((k) => args[k] === undefined || args[k] === null);
-  if (missing.length > 0) {
-    throw new Error(`Missing required argument(s) for '${toolName}': ${missing.join(", ")}`);
+  const schema = TOOL_SCHEMAS[toolName as keyof ToolSchemaMap];
+  if (!schema) {
+    // Defensive: mọi tool trong registry đều phải có schema.
+    throw new Error(`No input schema registered for tool: ${toolName}`);
   }
 
-  return handler(args);
+  const parsed = schema.safeParse(args);
+  if (!parsed.success) {
+    const missing = parsed.error.issues
+      .filter((i) => i.message.startsWith(MISSING_PREFIX))
+      .map((i) => i.path.join("."));
+    if (missing.length > 0) {
+      throw new Error(`Missing required argument(s) for '${toolName}': ${missing.join(", ")}`);
+    }
+    const details = parsed.error.issues
+      .map((i) => `- ${i.path.join(".") || "(root)"}: ${i.message}`)
+      .join("\n");
+    throw new Error(`Invalid arguments for '${toolName}':\n${details}`);
+  }
+
+  return handler(parsed.data as never);
 }

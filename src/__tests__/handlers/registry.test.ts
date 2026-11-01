@@ -80,4 +80,39 @@ describe("handler registry", () => {
     ).rejects.toThrow("Missing required argument(s) for 'get_project_detail': projectKey");
     expect(apiClient.get).not.toHaveBeenCalled();
   });
+
+  it("should coerce string numbers to numbers (client sends strings)", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { version: 1 } });
+    await routeToolCall({
+      method: "tools/call",
+      params: {
+        name: "get_pull_request_detail",
+        arguments: { projectKey: "PROJ", repoSlug: "repo", pullRequestId: "42" },
+      },
+    } as never);
+
+    // Handler thật chạy trên apiClient mock — kiểm tra URL chứa id đã coerce.
+    expect(apiClient.get).toHaveBeenCalledWith(
+      expect.stringContaining("/pull-requests/42"),
+    );
+  });
+
+  it("should reject wrong-typed arguments with a detailed message", async () => {
+    await expect(
+      routeToolCall({
+        method: "tools/call",
+        params: {
+          name: "grep",
+          arguments: { projectKey: "PROJ", repoSlug: "repo", query: "x", mode: "bogus" },
+        },
+      } as never),
+    ).rejects.toThrow(/Invalid arguments for 'grep':[\s\S]*mode/);
+  });
+
+  it("should have a schema for every registered tool", async () => {
+    const { TOOL_SCHEMAS } = await import("../../handlers/schemas.js");
+    for (const name of listToolNames()) {
+      expect(TOOL_SCHEMAS[name as keyof typeof TOOL_SCHEMAS], `schema for ${name}`).toBeDefined();
+    }
+  });
 });
