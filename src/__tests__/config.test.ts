@@ -1,11 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import type { AxiosInstance } from "axios";
 import {
   BitbucketError,
   ConfigurationError,
   RateLimitError,
   _resetConfigForTests,
+  _resetResponseCacheForTests,
   formatApiError,
   getConfig,
+  withGetCache,
 } from "../config.js";
 
 describe("error classes", () => {
@@ -142,5 +145,98 @@ describe("getConfig validation", () => {
     process.env.BITBUCKET_URL = "https://bitbucket.example.com";
     process.env.BITBUCKET_TIMEOUT_MS = "100";
     expect(() => getConfig()).toThrow(/at least 1000ms/);
+  });
+
+  it("should default the GET cache TTL to 30s and accept 0 to disable", () => {
+    process.env.BITBUCKET_TOKEN = "tok";
+    process.env.BITBUCKET_URL = "https://bitbucket.example.com";
+    expect(getConfig().BITBUCKET_CACHE_TTL_MS).toBe(30000);
+
+    _resetConfigForTests();
+    process.env.BITBUCKET_CACHE_TTL_MS = "0";
+    expect(getConfig().BITBUCKET_CACHE_TTL_MS).toBe(0);
+  });
+});
+
+describe("GET response cache", () => {
+  /** Fake axios client đếm số lần gọi upstream. */
+  function fakeClient(calls: string[]) {
+    return {
+      get: async (url: string, config?: { params?: unknown }) => {
+        calls.push(`${url}:${JSON.stringify(config?.params ?? {})}`);
+        return { data: { call: calls.length }, status: 200 };
+      },
+      post: async (url: string, data?: unknown) => ({ data: { ok: true, url, data }, status: 201 }),
+      delete: async (url: string, config?: unknown) => ({ data: { ok: true, url, config } }),
+    } as unknown as AxiosInstance;
+  }
+
+  afterEach(() => {
+    _resetResponseCacheForTests();
+  });
+
+  it("should serve repeated GETs with the same URL+params from cache", async () => {
+    const calls: string[] = [];
+    const cached = withGetCache(fakeClient(calls), 30000);
+
+    const first = await cached.get("/rest/api/1.0/projects");
+    const second = await cached.get("/rest/api/1.0/projects");
+    expect(calls).toHaveLength(1);
+    expect(second).toEqual(first);
+  });
+
+  it("should distinguish different params and header Accept", async () => {
+    const calls: string[] = [];
+    const cached = withGetCache(fakeClient(calls), 30000);
+
+    await cached.get("/repos", { params: { limit: 10 } });
+    await cached.get("/repos", { params: { limit: 20 } });
+    await cached.get("/repos", {
+      params: { limit: 10 },
+      headers: { Accept: "text/plain" },
+    });
+    expect(calls).toHaveLength(3);
+  });
+
+  it("should bust the cache when a mutating request runs", async () => {
+    const calls: string[] = [];
+    const cached = withGetCache(fakeClient(calls), 30000);
+
+    await cached.get("/rest/api/1.0/projects");
+    await cached.post("/rest/api/1.0/projects/PROJ/repos", {});
+    await cached.get("/rest/api/1.0/projects");
+    expect(calls).toHaveLength(2);
+  });
+
+  it("should not cache when TTL is 0", async () => {
+    const calls: string[] = [];
+    const cached = withGetCache(fakeClient(calls), 0);
+
+    await cached.get("/x");
+    await cached.get("/x");
+    expect(calls).toHaveLength(2);
+  });
+
+  it("should expire entries after the TTL", async () => {
+    vi.useFakeTimers();
+    try {
+      const calls: string[] = [];
+      const cached = withGetCache(fakeClient(calls), 50);
+      await cached.get("/x");
+      vi.advanceTimersByTime(60);
+      await cached.get("/x");
+      expect(calls).toHaveLength(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("should pass delete() config straight through (axios delete(url, config))", async () => {
+    const calls: string[] = [];
+    const cached = withGetCache(fakeClient(calls), 30000);
+    const result = await cached.delete("/repos/1", { params: { version: 2 } });
+    expect(result).toEqual({
+      data: { ok: true, url: "/repos/1", config: { params: { version: 2 } } },
+    });
   });
 });

@@ -139,6 +139,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `BITBUCKET_INSECURE_SSL` | No       | `false`     | Set to `true` to skip TLS verification (self-signed certs, trusted networks only) |
 | `BITBUCKET_TIMEOUT_MS`   | No       | `30000`     | Per-request timeout in milliseconds                                               |
 | `BITBUCKET_MAX_RETRIES`  | No       | `2`         | Retries with backoff on HTTP 429/5xx                                              |
+| `BITBUCKET_CACHE_TTL_MS` | No       | `30000`     | Short TTL cache for GET responses (fewer repeated API calls); `0` disables        |
 | `MCP_TRANSPORT`          | No       | `stdio`     | `stdio` or `http`                                                                 |
 | `PORT`                   | No       | `3000`      | HTTP port in `http` mode                                                          |
 | `MCP_ENDPOINT`           | No       | `/mcp`      | HTTP endpoint path in `http` mode                                                 |

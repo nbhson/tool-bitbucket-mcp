@@ -90,6 +90,16 @@ const ConfigSchema = z
       .min(0, "BITBUCKET_MAX_RETRIES must be at least 0")
       .max(5, "BITBUCKET_MAX_RETRIES must be at most 5")
       .default(2),
+    /**
+     * TTL của cache response cho các GET request (giảm số call lặp lại).
+     * `0` tắt hẳn cache. Mọi request ghi (POST/PUT/DELETE/PATCH) xóa cache.
+     */
+    BITBUCKET_CACHE_TTL_MS: z.coerce
+      .number({ message: "BITBUCKET_CACHE_TTL_MS must be a number" })
+      .int("BITBUCKET_CACHE_TTL_MS must be an integer")
+      .min(0, "BITBUCKET_CACHE_TTL_MS must be at least 0")
+      .max(600000, "BITBUCKET_CACHE_TTL_MS must be at most 600000ms")
+      .default(30000),
   })
   .strict();
 
@@ -197,6 +207,97 @@ export function logError(message: string, meta?: Record<string, unknown>): void 
 }
 
 // ============================================
+// GET Response Cache (TTL ngắn, tự xóa khi ghi)
+// ============================================
+
+interface CacheEntry {
+  response: unknown;
+  expires: number;
+}
+
+const responseCache = new Map<string, CacheEntry>();
+const MAX_CACHE_ENTRIES = 100;
+
+/** Test-only hook to drop the GET response cache between tests. */
+export function _resetResponseCacheForTests(): void {
+  responseCache.clear();
+}
+
+/** Chỉ cache GET từ các param nguyên thủy — ổn định và sortable. */
+function cacheKey(url: string, config?: { params?: unknown; headers?: unknown }): string {
+  let paramsPart = "";
+  const params = config?.params;
+  if (params && typeof params === "object") {
+    const entries = Object.entries(params as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => [k, String(v)] as const)
+      .sort(([a], [b]) => a.localeCompare(b));
+    paramsPart = new URLSearchParams(entries.map(([k, v]) => [k, v])).toString();
+  }
+  // Endpoint diff trả text/plain thay JSON — header Accept ảnh hưởng response.
+  const accept =
+    config?.headers && typeof config.headers === "object"
+      ? String((config.headers as Record<string, unknown>).Accept ?? "")
+      : "";
+  return `${accept}|${url}?${paramsPart}`;
+}
+
+/**
+ * Bọc axios instance bằng lớp cache GET TTL ngắn.
+ *
+ * - GET: trả response cache khi còn hạn (giảm số call API lặp, ví dụ grep
+ *   gọi raw-file nhiều lần trên cùng file).
+ * - POST/PUT/DELETE/PATCH: xóa toàn bộ cache trước khi thực thi (đọc luôn
+ *   dữ liệu mới sau ghi).
+ * - TTL <= 0: không bọc gì, hành vi như trước.
+ */
+/** Export cho test — bọc axios instance bằng lớp cache GET TTL ngắn. */
+export function withGetCache(client: AxiosInstance, ttlMs: number): AxiosInstance {
+  if (ttlMs <= 0) return client;
+
+  const mutating = new Set(["post", "put", "delete", "patch"]);
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      if (prop === "get") {
+        return async (url: string, config?: { params?: unknown; headers?: unknown }) => {
+          const key = cacheKey(url, config);
+          const hit = responseCache.get(key);
+          if (hit && Date.now() < hit.expires) {
+            logDebug("GET cache hit", { url });
+            return hit.response;
+          }
+          const response = await target.get(url, config as never);
+          responseCache.set(key, { response, expires: Date.now() + ttlMs });
+          // Giới hạn kích thước: đánh bật entry cũ nhất (Map giữ thứ tự insert).
+          if (responseCache.size > MAX_CACHE_ENTRIES) {
+            const oldest = responseCache.keys().next().value;
+            if (oldest !== undefined) responseCache.delete(oldest);
+          }
+          return response;
+        };
+      }
+      if (typeof prop === "string" && mutating.has(prop)) {
+        // delete() nhận (url, config) — không có slot data như post/put/patch.
+        if (prop === "delete") {
+          return async (url: string, config?: unknown) => {
+            responseCache.clear();
+            logDebug("Mutating request — cache cleared", { url, method: prop });
+            return target.delete(url, config as never);
+          };
+        }
+        return async (url: string, data?: unknown, config?: unknown) => {
+          responseCache.clear();
+          logDebug("Mutating request — cache cleared", { url, method: prop });
+          return target.post(url as never, data as never, config as never);
+        };
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+
+// ============================================
 // HTTP Client
 // ============================================
 
@@ -237,6 +338,7 @@ function createClient(config: BitbucketConfig): AxiosInstance {
     baseURL: config.BITBUCKET_URL,
     timeout: config.BITBUCKET_TIMEOUT_MS,
     maxRetries: config.BITBUCKET_MAX_RETRIES,
+    cacheTtlMs: config.BITBUCKET_CACHE_TTL_MS,
   });
 
   const client = axios.create({
@@ -308,7 +410,7 @@ function createClient(config: BitbucketConfig): AxiosInstance {
     },
   );
 
-  return client;
+  return withGetCache(client, config.BITBUCKET_CACHE_TTL_MS);
 }
 
 /**
