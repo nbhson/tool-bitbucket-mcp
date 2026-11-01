@@ -1,5 +1,6 @@
 import { apiClient } from "../config.js";
 import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
+import { encSegment } from "./pathUtils.js";
 
 export async function handleGetRepoBranches(
   args: { projectKey: string; repoSlug: string; filterText?: string } & PaginationArgs,
@@ -9,7 +10,7 @@ export async function handleGetRepoBranches(
   const params: Record<string, unknown> = { limit, start };
   if (filterText) params.filterText = filterText;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/branches`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/branches`,
     { params },
   );
   return toPage(response.data, limit, start);
@@ -18,7 +19,7 @@ export async function handleGetRepoBranches(
 export async function handleGetDefaultBranch(args: { projectKey: string; repoSlug: string }) {
   const { projectKey, repoSlug } = args;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/branches/default`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/branches/default`,
   );
   return response.data;
 }
@@ -34,7 +35,7 @@ export async function handleCreateBranch(args: {
   const payload: Record<string, unknown> = { name, startPoint };
   if (message) payload.message = message;
   const response = await apiClient.post(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/branches`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/branches`,
     payload,
     { headers: { "X-Atlassian-Token": "no-check" } },
   );
@@ -51,7 +52,7 @@ export async function handleDeleteBranch(args: {
   // NOTE: Bitbucket Server deletes branches via the `name` query parameter —
   // the branch id must NOT be URL-encoded into the path (slashes would break).
   const response = await apiClient.delete(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/branches`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/branches`,
     {
       params: { name: branchName, ...(dryRun ? { dryRun: true } : {}) },
       headers: { "X-Atlassian-Token": "no-check" },

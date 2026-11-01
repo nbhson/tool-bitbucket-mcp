@@ -1,6 +1,6 @@
 import { apiClient } from "../config.js";
 import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
-import { normalizePathString } from "./pathUtils.js";
+import { encFilePath, encSegment, normalizePathString } from "./pathUtils.js";
 
 export async function handleGetFileContent(args: {
   projectKey: string;
@@ -9,9 +9,12 @@ export async function handleGetFileContent(args: {
   at?: string;
 }) {
   const { projectKey, repoSlug, path, at } = args;
-  const response = await apiClient.get(`/projects/${projectKey}/repos/${repoSlug}/raw/${path}`, {
-    params: at ? { at } : {},
-  });
+  const response = await apiClient.get(
+    `/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/raw/${encFilePath(path)}`,
+    {
+      params: at ? { at } : {},
+    },
+  );
   return typeof response.data === "string" ? response.data : JSON.stringify(response.data, null, 2);
 }
 
@@ -26,9 +29,8 @@ export async function handleGetDirectoryListing(
   const { projectKey, repoSlug, path, at, ...page } = args;
   const { limit, start } = pageParams(page, 500);
   const repoPath = path || "";
-  const url = repoPath
-    ? `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/browse/${repoPath}`
-    : `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/browse`;
+  const repoBase = `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}`;
+  const url = repoPath ? `${repoBase}/browse/${encFilePath(repoPath)}` : `${repoBase}/browse`;
   const response = await apiClient.get(url, {
     params: { ...(at ? { at } : {}), limit, start },
   });

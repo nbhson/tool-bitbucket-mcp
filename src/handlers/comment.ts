@@ -1,4 +1,5 @@
 import { apiClient } from "../config.js";
+import { encSegment } from "./pathUtils.js";
 
 export async function handleAddComment(args: {
   projectKey: string;
@@ -41,7 +42,7 @@ export async function handleAddComment(args: {
   }
 
   const response = await apiClient.post(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${encSegment(pullRequestId)}/comments`,
     payload,
   );
   return response.data;
@@ -57,7 +58,7 @@ export async function handleManageComment(args: {
   text?: string;
 }) {
   const { projectKey, repoSlug, pullRequestId, commentId, version, action, text } = args;
-  const baseUrl = `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments/${commentId}`;
+  const baseUrl = `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${encSegment(pullRequestId)}/comments/${encSegment(commentId)}`;
 
   if (action === "delete") {
     await apiClient.delete(baseUrl, { params: { version } });

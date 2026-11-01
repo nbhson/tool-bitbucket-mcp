@@ -1,12 +1,16 @@
 import { apiClient } from "../config.js";
 import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
+import { encSegment } from "./pathUtils.js";
 
 export async function handleListRepositories(args: { projectKey: string } & PaginationArgs) {
   const { projectKey, ...page } = args;
   const { limit, start } = pageParams(page, 100);
-  const response = await apiClient.get(`/rest/api/1.0/projects/${projectKey}/repos`, {
-    params: { limit, start },
-  });
+  const response = await apiClient.get(
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos`,
+    {
+      params: { limit, start },
+    },
+  );
   return toPage(response.data, limit, start);
 }
 
@@ -28,7 +32,9 @@ export async function handleSearchRepositories(args: {
   // Fast path: server-side `name` filter on the global repos endpoint.
   try {
     const params: Record<string, unknown> = { name: query, limit: Math.min(max_results, 100) };
-    const url = projectKey ? `/rest/api/1.0/projects/${projectKey}/repos` : `/rest/api/1.0/repos`;
+    const url = projectKey
+      ? `/rest/api/1.0/projects/${encSegment(projectKey)}/repos`
+      : `/rest/api/1.0/repos`;
     const response = await apiClient.get(url, { params });
     const values = response.data.values || [];
     if (values.length > 0 || projectKey) {
@@ -46,9 +52,12 @@ export async function handleSearchRepositories(args: {
     (r.description && r.description.toLowerCase().includes(lowerQuery));
 
   if (projectKey) {
-    const response = await apiClient.get(`/rest/api/1.0/projects/${projectKey}/repos`, {
-      params: { limit: 100 },
-    });
+    const response = await apiClient.get(
+      `/rest/api/1.0/projects/${encSegment(projectKey)}/repos`,
+      {
+        params: { limit: 100 },
+      },
+    );
     const repos = (response.data.values || []).filter(matches);
     return repos.slice(0, max_results).map(summarize);
   }
@@ -60,7 +69,7 @@ export async function handleSearchRepositories(args: {
   const projects = projectsResponse.data.values || [];
   const settled = await Promise.allSettled(
     projects.map((project: any) =>
-      apiClient.get(`/rest/api/1.0/projects/${project.key}/repos`, {
+      apiClient.get(`/rest/api/1.0/projects/${encSegment(project.key)}/repos`, {
         params: { limit: 100 },
       }),
     ),
@@ -91,7 +100,7 @@ export async function handleForkRepository(args: {
   if (name) payload.name = name;
   if (slug) payload.slug = slug;
   const response = await apiClient.post(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/forks`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/forks`,
     payload,
     { headers: { "X-Atlassian-Token": "no-check" } },
   );
@@ -104,7 +113,7 @@ export async function handleListWebhooks(
   const { projectKey, repoSlug, ...page } = args;
   const { limit, start } = pageParams(page);
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/webhooks`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/webhooks`,
     { params: { limit, start } },
   );
   return toPage(response.data, limit, start);

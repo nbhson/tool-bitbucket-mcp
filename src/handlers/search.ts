@@ -1,4 +1,5 @@
 import { apiClient } from "../config.js";
+import { encFilePath, encSegment } from "./pathUtils.js";
 
 // Cache of resolved default branches per repo (process lifetime).
 const defaultBranchCache = new Map<string, string>();
@@ -14,7 +15,7 @@ async function resolveDefaultBranch(projectKey: string, repoSlug: string): Promi
   if (cached) return cached;
   try {
     const response = await apiClient.get(
-      `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/branches/default`,
+      `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/branches/default`,
     );
     const id = response.data?.id;
     if (typeof id === "string" && id) {
@@ -27,7 +28,7 @@ async function resolveDefaultBranch(projectKey: string, repoSlug: string): Promi
   // Heuristic: most servers default to `main` nowadays, `master` historically.
   try {
     const branches = await apiClient.get(
-      `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/branches`,
+      `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/branches`,
       { params: { limit: 100 } },
     );
     const values = branches.data.values || [];
@@ -50,7 +51,7 @@ export async function handleSearchCode(args: {
 }) {
   const { projectKey, repoSlug, query, limit = 25 } = args;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/search`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/search`,
     { params: { q: query, limit } },
   );
   return response.data.values || response.data;
@@ -97,8 +98,9 @@ export function globToRegex(glob: string): RegExp {
 function compileQuery(query: string, caseInsensitive: boolean): RegExp {
   try {
     return new RegExp(query, caseInsensitive ? "gi" : "g");
-  } catch (err: any) {
-    throw new Error(`Invalid regex query: ${err?.message || err}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Invalid regex query: ${message}`, { cause: err });
   }
 }
 
@@ -110,7 +112,7 @@ async function fetchRawFile(
 ): Promise<string | null> {
   try {
     const fileResponse = await apiClient.get(
-      `/projects/${projectKey}/repos/${repoSlug}/raw/${filePath}`,
+      `/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/raw/${encFilePath(filePath)}`,
       { params: { at } },
     );
     return typeof fileResponse.data === "string" ? fileResponse.data : null;
@@ -184,7 +186,7 @@ export async function handleGrep(args: {
 
   // Candidate files from Bitbucket's index-backed search.
   const searchResponse = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/search`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/search`,
     { params: { q: query, limit: Math.min(Math.max(max_results, 1), 100) } },
   );
   const candidateFiles = Array.from(

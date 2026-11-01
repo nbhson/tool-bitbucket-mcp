@@ -1,5 +1,6 @@
 import { apiClient } from "../config.js";
 import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
+import { encSegment } from "./pathUtils.js";
 
 export async function handleGetRepoTags(
   args: { projectKey: string; repoSlug: string; filterText?: string } & PaginationArgs,
@@ -9,7 +10,7 @@ export async function handleGetRepoTags(
   const params: Record<string, unknown> = { limit, start };
   if (filterText) params.filterText = filterText;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/tags`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/tags`,
     { params },
   );
   return toPage(response.data, limit, start);

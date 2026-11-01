@@ -1,5 +1,6 @@
 import { apiClient } from "../config.js";
 import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
+import { encSegment } from "./pathUtils.js";
 
 export async function handleListProjects(args: PaginationArgs = {}) {
   const { limit, start } = pageParams(args);
@@ -10,6 +11,6 @@ export async function handleListProjects(args: PaginationArgs = {}) {
 }
 
 export async function handleGetProjectDetail(args: { projectKey: string }) {
-  const response = await apiClient.get(`/rest/api/1.0/projects/${args.projectKey}`);
+  const response = await apiClient.get(`/rest/api/1.0/projects/${encSegment(args.projectKey)}`);
   return response.data;
 }

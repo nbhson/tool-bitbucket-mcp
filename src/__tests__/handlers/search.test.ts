@@ -5,6 +5,7 @@ import {
   globToRegex,
   _resetSearchCacheForTests,
 } from "../../handlers/search.js";
+import { encFilePath, encSegment } from "../../handlers/pathUtils.js";
 
 vi.mock("../../config.js", () => ({
   apiClient: {
@@ -209,6 +210,44 @@ describe("search handlers", () => {
       expect(globToRegex("*.ts").test("a.ts")).toBe(true);
       expect(globToRegex("*.ts").test("a/b.ts")).toBe(false);
       expect(globToRegex("src/*.ts").test("src/a/b.ts")).toBe(false);
+    });
+  });
+
+  describe("URL encoding", () => {
+    it("should URL-encode special characters in raw file paths", async () => {
+      defaultBranch();
+      vi.mocked(apiClient.get).mockResolvedValueOnce({
+        data: { values: [{ path: "my dir/file#1.txt" }] },
+      });
+      vi.mocked(apiClient.get).mockResolvedValueOnce({ data: "content" });
+
+      await handleGrep({
+        projectKey: "PROJ",
+        repoSlug: "repo",
+        query: "content",
+      });
+
+      const rawCall = vi
+        .mocked(apiClient.get)
+        .mock.calls.find((call) => String(call[0]).includes("/raw/"));
+      expect(rawCall?.[0]).toBe(
+        `/projects/PROJ/repos/repo/raw/${encFilePath("my dir/file#1.txt")}`,
+      );
+    });
+
+    it("should URL-encode projectKey/repoSlug in API URLs", async () => {
+      vi.mocked(apiClient.get).mockResolvedValue({ data: { values: [] } });
+
+      await handleSearchCode({
+        projectKey: "PROJ ONE",
+        repoSlug: "repo~x",
+        query: "q",
+      });
+
+      expect(apiClient.get).toHaveBeenCalledWith(
+        `/rest/api/1.0/projects/${encSegment("PROJ ONE")}/repos/${encSegment("repo~x")}/search`,
+        { params: { q: "q", limit: 25 } },
+      );
     });
   });
 });

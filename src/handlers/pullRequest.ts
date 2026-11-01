@@ -1,5 +1,6 @@
 import { apiClient } from "../config.js";
 import { pageParams, toPage, type PaginationArgs } from "../pagination.js";
+import { encSegment } from "./pathUtils.js";
 
 export async function handleGetPullRequests(
   args: {
@@ -14,7 +15,7 @@ export async function handleGetPullRequests(
   const params: Record<string, unknown> = { state, limit, start };
   if (order) params.order = order;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests`,
     { params },
   );
   return toPage(response.data, limit, start);
@@ -40,7 +41,7 @@ export async function handleCreatePullRequest(args: {
     payload.reviewers = reviewers.map((username: string) => ({ user: { name: username } }));
   }
   const response = await apiClient.post(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests`,
     payload,
   );
   return response.data;
@@ -53,7 +54,7 @@ export async function handleGetPullRequestDetail(args: {
 }) {
   const { projectKey, repoSlug, pullRequestId } = args;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}`,
   );
   return response.data;
 }
@@ -70,7 +71,7 @@ export async function handleMergePullRequest(args: {
   const payload: Record<string, unknown> = { version, message: message || "" };
   if (strategy) payload.strategyId = strategy;
   const response = await apiClient.post(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/merge`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/merge`,
     payload,
     { headers: { "X-Atlassian-Token": "no-check" } },
   );
@@ -86,7 +87,7 @@ export async function handleDeclinePullRequest(args: {
 }) {
   const { projectKey, repoSlug, pullRequestId, version, message } = args;
   const response = await apiClient.post(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/decline`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/decline`,
     { version, message: message || "" },
     { headers: { "X-Atlassian-Token": "no-check" } },
   );
@@ -103,12 +104,12 @@ export async function handleReopenPullRequest(args: {
   let currentVersion = version;
   if (!currentVersion) {
     const pr = await apiClient.get(
-      `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+      `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}`,
     );
     currentVersion = pr.data.version;
   }
   const response = await apiClient.post(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/reopen`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/reopen`,
     { version: currentVersion },
     { headers: { "X-Atlassian-Token": "no-check" } },
   );
@@ -122,7 +123,7 @@ export async function handleGetPullRequestMergeStatus(args: {
 }) {
   const { projectKey, repoSlug, pullRequestId } = args;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/merge`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/merge`,
   );
   const data = response.data;
   return {
@@ -142,7 +143,7 @@ export async function handleGetPullRequestComments(
   const { projectKey, repoSlug, pullRequestId, ...page } = args;
   const { limit, start } = pageParams(page, 100);
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/comments`,
     { params: { limit, start } },
   );
   return toPage(response.data, limit, start);
@@ -154,7 +155,7 @@ export async function handleGetPullRequestActivities(
   const { projectKey, repoSlug, pullRequestId, ...page } = args;
   const { limit, start } = pageParams(page, 100);
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/activities`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/activities`,
     { params: { limit, start } },
   );
   return toPage(response.data, limit, start);
@@ -167,7 +168,7 @@ export async function handleGetPullRequestReviewers(args: {
 }) {
   const { projectKey, repoSlug, pullRequestId } = args;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/participants`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/participants`,
   );
   return response.data.values || response.data;
 }
@@ -189,7 +190,7 @@ export async function handleGetPullRequestTasks(args: {
   const pageSize = 100;
   for (;;) {
     const response = await apiClient.get(
-      `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/comments`,
+      `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/comments`,
       { params: { limit: pageSize, start } },
     );
     const values = response.data.values || [];
@@ -214,7 +215,7 @@ export async function handleGetPullRequestDiff(args: {
 }) {
   const { projectKey, repoSlug, pullRequestId, path } = args;
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/diff`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/diff`,
     {
       headers: { Accept: "text/plain" },
       params: path ? { path } : {},
@@ -234,7 +235,7 @@ export async function handleListPrCommits(
   const { projectKey, repoSlug, pullRequestId, max_results, ...page } = args;
   const { limit, start } = pageParams(page, max_results ?? 100);
   const response = await apiClient.get(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/commits`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/commits`,
     { params: { limit, start } },
   );
   const commits = (response.data.values || response.data || []).map((c: any) => ({
@@ -277,7 +278,7 @@ export async function handleSetReviewStatus(args: {
   };
 
   const response = await apiClient.put(
-    `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}/participants/${encodeURIComponent(userKey)}`,
+    `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}/participants/${encodeURIComponent(userKey)}`,
     payload,
     { headers: { "X-Atlassian-Token": "no-check" } },
   );
@@ -299,7 +300,7 @@ export async function handleUpdatePullRequest(args: {
 
   if (!currentVersion) {
     const prResponse = await apiClient.get(
-      `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+      `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}`,
     );
     currentVersion = prResponse.data.version;
   }
@@ -316,7 +317,7 @@ export async function handleUpdatePullRequest(args: {
 
   try {
     const response = await apiClient.put(
-      `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+      `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}`,
       buildPayload(),
       { headers: { "X-Atlassian-Token": "no-check" } },
     );
@@ -324,11 +325,11 @@ export async function handleUpdatePullRequest(args: {
   } catch (err: any) {
     if (err.response?.status === 409) {
       const prResponse = await apiClient.get(
-        `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+        `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}`,
       );
       currentVersion = prResponse.data.version;
       const response = await apiClient.put(
-        `/rest/api/1.0/projects/${projectKey}/repos/${repoSlug}/pull-requests/${pullRequestId}`,
+        `/rest/api/1.0/projects/${encSegment(projectKey)}/repos/${encSegment(repoSlug)}/pull-requests/${pullRequestId}`,
         buildPayload(),
         { headers: { "X-Atlassian-Token": "no-check" } },
       );
