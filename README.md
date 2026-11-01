@@ -220,6 +220,7 @@ docker run --rm -p 3000:3000 \
   -e BITBUCKET_TOKEN=your-token \
   bitbucket-mcp
 # MCP endpoint: http://localhost:3000/mcp
+# GET on the endpoint returns a health payload: {"ok": true, ...}
 ```
 
 ## Configuration
@@ -453,7 +454,9 @@ src/
 │   ├── user.ts           # User operations
 │   └── search.ts         # Search operations
 └── __tests__/
-    └── handlers/         # Vitest suites (95 tests)
+    ├── handlers/         # Vitest suites (per-handler units)
+    ├── http.test.ts      # Integration: Streamable HTTP transport (413, health, JSON-RPC)
+    └── *.test.ts         # Config, registry, version
 ```
 
 ## License

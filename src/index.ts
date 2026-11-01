@@ -4,7 +4,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createServer as createHttpServer } from "node:http";
+import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
 
 import { getConfig, formatApiError } from "./config.js";
 import { routeToolCall } from "./handlers/index.js";
@@ -97,22 +97,25 @@ async function runStdio(): Promise<void> {
   console.error(`[bitbucket-mcp] v${SERVER_VERSION} running on stdio`);
 }
 
-async function runHttp(port: number, endpoint: string): Promise<void> {
-  // Bind to loopback by default. HOST=0.0.0.0 exposes the PAT-bound server to
-  // the network — documented as insecure and loudly warned about here.
-  const host = process.env.HOST || "127.0.0.1";
-  if (!isLoopbackHost(host)) {
-    console.error(
-      `[bitbucket-mcp] WARNING: binding on ${host} — anyone on the network can ` +
-        `invoke your Bitbucket PAT. Use a reverse proxy with TLS + auth.`,
-    );
-  }
-
+/**
+ * Tạo HTTP server xử lý MCP Streamable HTTP (stateless) — KHÔNG listen.
+ *
+ * Export để test integration với port random (`server.listen(0)`).
+ * - GET  `<endpoint>`: health check (200 JSON, không cần body).
+ * - POST `<endpoint>`: JSON-RPC qua StreamableHTTPServerTransport.
+ * - Body cap MAX_BODY_BYTES (2 MiB) → 413; JSON hỏng → 400.
+ */
+export function createHttpMcpServer(endpoint: string): HttpServer {
   const httpServer = createHttpServer(async (req, res) => {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
     if (url.pathname !== endpoint) {
       res.writeHead(404, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: `Not found. MCP endpoint is ${endpoint}` }));
+      return;
+    }
+    if (req.method === "GET") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ ok: true, name: SERVER_NAME, version: SERVER_VERSION }));
       return;
     }
     let body: unknown = undefined;
@@ -159,9 +162,27 @@ async function runHttp(port: number, endpoint: string): Promise<void> {
       await server.close().catch(() => undefined);
     }
   });
+  return httpServer;
+}
+
+async function runHttp(port: number, endpoint: string): Promise<void> {
+  // Bind to loopback by default. HOST=0.0.0.0 exposes the PAT-bound server to
+  // the network — documented as insecure and loudly warned about here.
+  const host = process.env.HOST || "127.0.0.1";
+  if (!isLoopbackHost(host)) {
+    console.error(
+      `[bitbucket-mcp] WARNING: binding on ${host} — anyone on the network can ` +
+        `invoke your Bitbucket PAT. Use a reverse proxy with TLS + auth.`,
+    );
+  }
+
+  const httpServer = createHttpMcpServer(endpoint);
 
   await new Promise<void>((resolve) => httpServer.listen(port, host, resolve));
-  console.error(`[bitbucket-mcp] v${SERVER_VERSION} listening on ${host}:${port}${endpoint}`);
+  const address = httpServer.address();
+  console.error(
+    `[bitbucket-mcp] v${SERVER_VERSION} listening on ${host}:${typeof address === "object" && address ? address.port : port}${endpoint}`,
+  );
 }
 
 async function run(): Promise<void> {
