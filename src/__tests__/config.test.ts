@@ -36,23 +36,24 @@ describe("error classes", () => {
 
 describe("formatApiError", () => {
   it("should format a string response body", () => {
-    const error = { response: { status: 404, data: "Not found" } };
-    expect(formatApiError(error)).toBe("Bitbucket API error (HTTP 404): Not found");
+    const error = { response: { status: 500, data: "Not found" } };
+    // 500 không có hint — message giữ nguyên dạng cũ.
+    expect(formatApiError(error)).toBe("Bitbucket API error (HTTP 500): Not found");
   });
 
   it("should join Bitbucket errors[].message", () => {
     const error = {
       response: {
-        status: 400,
+        status: 500,
         data: { errors: [{ message: "bad ref" }, { message: "bad path" }] },
       },
     };
-    expect(formatApiError(error)).toBe("Bitbucket API error (HTTP 400): bad ref; bad path");
+    expect(formatApiError(error)).toBe("Bitbucket API error (HTTP 500): bad ref; bad path");
   });
 
   it("should use a top-level message when present", () => {
-    const error = { response: { status: 403, data: { message: "forbidden" } } };
-    expect(formatApiError(error)).toBe("Bitbucket API error (HTTP 403): forbidden");
+    const error = { response: { status: 500, data: { message: "forbidden" } } };
+    expect(formatApiError(error)).toBe("Bitbucket API error (HTTP 500): forbidden");
   });
 
   it("should JSON-stringify other object bodies", () => {
@@ -70,6 +71,35 @@ describe("formatApiError", () => {
   it("should reuse the pre-formatted message of a wrapped BitbucketError", () => {
     expect(formatApiError(new BitbucketError("Bitbucket API error (HTTP 500): x", 500))).toBe(
       "Bitbucket API error (HTTP 500): x",
+    );
+  });
+
+  it("should append an actionable hint for common HTTP statuses", () => {
+    expect(formatApiError({ response: { status: 401, data: "Unauthorized" } })).toMatch(
+      /Hint:.*token.*PAT/i,
+    );
+    expect(formatApiError({ response: { status: 403, data: "denied" } })).toMatch(
+      /Hint:.*thiếu quyền/i,
+    );
+    expect(formatApiError({ response: { status: 404, data: "Not found" } })).toMatch(
+      /Hint:.*projectKey\/repoSlug/i,
+    );
+    expect(formatApiError({ response: { status: 409, data: "conflict" } })).toMatch(
+      /Hint:.*version/i,
+    );
+    expect(formatApiError({ response: { status: 429, data: "slow down" } })).toMatch(
+      /Hint:.*rate limit/i,
+    );
+  });
+
+  it("should keep the original message before the hint", () => {
+    const message = formatApiError({ response: { status: 404, data: "Repo not found" } });
+    expect(message).toMatch(/^Bitbucket API error \(HTTP 404\): Repo not found\nHint:/);
+  });
+
+  it("should not append a hint for uncommon statuses", () => {
+    expect(formatApiError({ response: { status: 418, data: "teapot" } })).toBe(
+      "Bitbucket API error (HTTP 418): teapot",
     );
   });
 });

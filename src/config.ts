@@ -306,6 +306,20 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
+ * Gợi ý xử lý theo HTTP status — biến message lỗi kỹ thuật thành chỉ dẫn
+ * hành động cho LLM/người dùng (token hết hạn, thiếu quyền, sai repo...).
+ */
+const STATUS_HINTS: Record<number, string> = {
+  401: "Hint: Personal Access Token có thể đã hết hạn hoặc bị thu hồi — tạo PAT mới trong Profile → Personal access tokens và cập nhật BITBUCKET_TOKEN.",
+  403: "Hint: token thiếu quyền cho hành động này — kiểm tra permissions của PAT (read/write repo, PR approve...) hoặc yêu cầu admin cấp quyền.",
+  404: "Hint: không tìm thấy resource — kiểm tra projectKey/repoSlug có đúng không (phân biệt chữ hoa/thường), repo có bị đổi tên hoặc bạn thiếu quyền truy cập không.",
+  409: "Hint: xung đột version — fetch lại resource để lấy 'version' mới nhất rồi thử lại (các tool như update_pull_request đã tự retry).",
+  429: "Hint: bị rate limit — server đã tự retry với backoff; giảm tần suất hoặc tăng BITBUCKET_MAX_RETRIES.",
+  502: "Hint: Bitbucket Server tạm thời không truy cập được (reverse proxy/lỗi upstream) — thử lại sau.",
+  503: "Hint: Bitbucket Server đang bảo trì/quá tải — thử lại sau ít phút.",
+};
+
+/**
  * Format Bitbucket API error message from axios error
  */
 export function formatApiError(error: unknown): string {
@@ -314,19 +328,22 @@ export function formatApiError(error: unknown): string {
     const status = axiosError.response?.status;
     const data = axiosError.response?.data;
 
-    if (typeof data === "string") return `Bitbucket API error (HTTP ${status}): ${data}`;
-
-    if (data && typeof data === "object" && "errors" in data) {
+    let base: string;
+    if (typeof data === "string") base = `Bitbucket API error (HTTP ${status}): ${data}`;
+    else if (data && typeof data === "object" && "errors" in data) {
       const errors = (data as { errors?: Array<{ message?: string }> }).errors;
       const message = errors?.map((e) => e.message).join("; ") || String(data);
-      return `Bitbucket API error (HTTP ${status}): ${message}`;
+      base = `Bitbucket API error (HTTP ${status}): ${message}`;
+    } else if (data && typeof data === "object" && "message" in data) {
+      base = `Bitbucket API error (HTTP ${status}): ${(data as { message: string }).message}`;
+    } else if (data !== undefined) {
+      base = `Bitbucket API error (HTTP ${status}): ${JSON.stringify(data)}`;
+    } else {
+      base = `Bitbucket API error (HTTP ${status})`;
     }
 
-    if (data && typeof data === "object" && "message" in data) {
-      return `Bitbucket API error (HTTP ${status}): ${(data as { message: string }).message}`;
-    }
-
-    return `Bitbucket API error (HTTP ${status}): ${JSON.stringify(data)}`;
+    const hint = status !== undefined ? STATUS_HINTS[status] : undefined;
+    return hint ? `${base}\n${hint}` : base;
   }
 
   if (error instanceof Error) return error.message;

@@ -75,6 +75,102 @@
 - **search_code** — Index-backed exact-term search across a repository (case-insensitive, files <512 KiB)
 - **grep** — Regex search file contents across a repository (like ripgrep). Supports content/files/count modes, filename glob (`*`, `**`, `?`), path filtering, context lines, case-insensitive search, `max_files` fetch cap. Defaults to the repository's default branch when `ref` is omitted.
 
+## Tool Input Examples
+
+Ready-to-paste `arguments` for every tool (grouped by domain):
+
+### Project Operations
+
+```json
+{"tool": "list_projects", "arguments": {"limit": 25}}
+{"tool": "get_project_detail", "arguments": {"projectKey": "PROJ1"}}
+```
+
+### Repository Operations
+
+```json
+{"tool": "list_repositories", "arguments": {"projectKey": "PROJ1", "limit": 50}}
+{"tool": "search_repositories", "arguments": {"query": "api", "max_results": 10}}
+{"tool": "fork_repository", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "targetProjectKey": "PROJ2"}}
+{"tool": "list_webhooks", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo"}}
+```
+
+### Branch Operations
+
+```json
+{"tool": "get_repo_branches", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "filterText": "feature/"}}
+{"tool": "get_default_branch", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo"}}
+{"tool": "create_branch", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "name": "feature/login", "startPoint": "refs/heads/main", "message": "Add login feature"}}
+{"tool": "delete_branch", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "branchName": "refs/heads/old-feature", "dryRun": true}}
+```
+
+### Commit Operations
+
+```json
+{"tool": "get_repo_commits", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "until": "refs/heads/main", "limit": 30}}
+{"tool": "get_commit_detail", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "commitId": "abcdef123456", "detail": "full"}}
+```
+
+### Tag Operations
+
+```json
+{"tool": "get_repo_tags", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "filterText": "v1.", "limit": 50}}
+```
+
+### Pull Request Operations
+
+```json
+{"tool": "get_pull_requests", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "state": "OPEN", "limit": 25}}
+{"tool": "get_pull_request_detail", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42}}
+{"tool": "create_pull_request", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "title": "Add login", "fromRef": "refs/heads/feature/login", "toRef": "refs/heads/main", "reviewers": ["jsmith"]}}
+{"tool": "update_pull_request", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "title": "New title"}}
+{"tool": "merge_pull_request", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "version": 3, "strategy": "squash"}}
+{"tool": "decline_pull_request", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "version": 3}}
+{"tool": "reopen_pull_request", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42}}
+{"tool": "get_pull_request_merge_status", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42}}
+{"tool": "get_pull_request_comments", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42}}
+{"tool": "get_pull_request_activities", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42}}
+{"tool": "get_pull_request_reviewers", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42}}
+{"tool": "get_pull_request_tasks", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "state": "OPEN"}}
+{"tool": "get_pull_request_diff", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42}}
+{"tool": "list_pr_commits", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42}}
+{"tool": "set_review_status", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "status": "APPROVED"}}
+```
+
+### Comment Operations
+
+```json
+{"tool": "add_comment", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "text": "LGTM!"}}
+{"tool": "add_comment", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "text": "Fix this", "severity": "BLOCKER", "anchor": {"path": "src/main.ts", "line": 12, "lineType": "ADDED"}}}
+{"tool": "manage_comment", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "commentId": 101, "version": 1, "action": "edit", "text": "Updated text"}}
+{"tool": "manage_comment", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "pullRequestId": 42, "commentId": 101, "version": 1, "action": "delete"}}
+```
+
+### Source Code Operations
+
+```json
+{"tool": "get_file_content", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "path": "src/main.ts", "at": "refs/heads/main"}}
+{"tool": "get_directory_listing", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "path": "src", "at": "refs/heads/main"}}
+{"tool": "get_file_diff", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "fromRef": "refs/heads/main", "toRef": "refs/heads/feature/login", "path": "src/main.ts"}}
+{"tool": "get_file_history", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "path": "src/main.ts", "limit": 20}}
+{"tool": "get_commit_compare", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "fromRef": "v1.0.0", "toRef": "v1.1.0"}}
+```
+
+### User Operations
+
+```json
+{"tool": "get_current_user", "arguments": {}}
+{"tool": "search_users", "arguments": {"query": "john", "limit": 10}}
+```
+
+### Code Search Operations
+
+```json
+{"tool": "search_code", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "query": "TODO", "limit": 25}}
+{"tool": "grep", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "query": "function\\s+handle\\w+", "mode": "content", "glob": "src/**/*.ts", "context_lines": 2, "max_results": 50}}
+{"tool": "grep", "arguments": {"projectKey": "PROJ1", "repoSlug": "my-repo", "query": "FIXME", "mode": "count", "ref": "refs/heads/main"}}
+```
+
 ## Pagination
 
 Every collection tool returns a stable envelope:
