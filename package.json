@@ -36,7 +36,11 @@
   "description": "MCP server for Bitbucket Server integration",
   "repository": {
     "type": "git",
-    "url": "https://bitbucket.org/nbhson/tool-bitbucket-mcp.git"
+    "url": "git+https://github.com/nbhson/tool-bitbucket-mcp.git"
+  },
+  "homepage": "https://github.com/nbhson/tool-bitbucket-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/nbhson/tool-bitbucket-mcp/issues"
   },
   "engines": {
     "node": ">=18.0.0"
